@@ -3,8 +3,8 @@ import 'package:flutter/foundation.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 class CallService extends ChangeNotifier {
-  static const String appId = '<YOUR_AGORA_APP_ID>';
-  static const String tempToken = '<YOUR_AGORA_TEMP_TOKEN>';
+  static const String appId = '8b387fb54fce41519043edc4e9aa0ce4';
+  static const String tempToken = '007eJxTYDirIPos9qRBru31+kminB6ruVhdl64TPGqx+pPl8es9ZjwKDBZJxhbmaUmmJmnJqSaGpoaWBibGqSnJJqmWiYkGQKH0fbVZDYGMDBmzrjIyMkAgiM/EkJHJwAAAknkdmg==';
 
   RtcEngine? _engine;
   int? _remoteUid;
