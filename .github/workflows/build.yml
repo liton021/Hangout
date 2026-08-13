@@ -11,6 +11,9 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: hangout_app
 
     steps:
       - name: Checkout code
@@ -39,28 +42,25 @@ jobs:
             ${{ runner.os }}-flutter-
 
       - name: Install dependencies
-        working-directory: hangout_app
         run: flutter pub get
 
       - name: Verify Flutter installation
-        working-directory: hangout_app
         run: flutter --version
 
       - name: Build release APK
-        working-directory: hangout_app
         run: flutter build apk --release
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
           name: release-apk
-          path: hangout_app/build/app/outputs/flutter-apk/app-release.apk
+          path: build/app/outputs/flutter-apk/app-release.apk
           retention-days: 90
 
       - name: Upload APK to GitHub Release
         if: github.event_name == 'release'
         uses: softprops/action-gh-release@v1
         with:
-          files: hangout_app/build/app/outputs/flutter-apk/app-release.apk
+          files: build/app/outputs/flutter-apk/app-release.apk
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
