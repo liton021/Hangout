@@ -11,9 +11,6 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: hangout_app
 
     steps:
       - name: Checkout code
@@ -28,39 +25,28 @@ jobs:
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.35.7'
+          flutter-version: '3.24.0'
           channel: 'stable'
 
-      - name: Cache Flutter dependencies
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.pub-cache
-            hangout_app/.dart_tool
-          key: ${{ runner.os }}-flutter-${{ hashFiles('hangout_app/pubspec.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-flutter-
-
       - name: Install dependencies
+        working-directory: hangout_app
         run: flutter pub get
 
-      - name: Verify Flutter installation
-        run: flutter --version
-
       - name: Build release APK
+        working-directory: hangout_app
         run: flutter build apk --release
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
           name: release-apk
-          path: build/app/outputs/flutter-apk/app-release.apk
+          path: hangout_app/build/app/outputs/flutter-apk/app-release.apk
           retention-days: 90
 
       - name: Upload APK to GitHub Release
         if: github.event_name == 'release'
         uses: softprops/action-gh-release@v1
         with:
-          files: build/app/outputs/flutter-apk/app-release.apk
+          files: hangout_app/build/app/outputs/flutter-apk/app-release.apk
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
