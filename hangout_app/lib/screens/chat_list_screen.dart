@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../services/auth_service.dart';
+import '../services/call_service.dart';
 import 'chat_screen.dart';
 
 class ChatListScreen extends StatelessWidget {
@@ -30,23 +31,23 @@ class ChatListScreen extends StatelessWidget {
           return ListTile(
             leading: CircleAvatar(
               backgroundColor: Colors.blue.shade100,
-              child: Text(user['name'][0]),
+              child: Text(user['name']![0]),
             ),
-            title: Text(user['name']),
-            subtitle: Text(user['email']),
+            title: Text(user['name']!),
+            subtitle: Text(user['email']!),
             trailing: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
                 IconButton(
                   icon: const Icon(Icons.call, color: Colors.green),
                   onPressed: () {
-                    _startCall(context, user['id'], user['name'], isVideo: false);
+                    _startCall(context, user['id']!, user['name']!, isVideo: false);
                   },
                 ),
                 IconButton(
                   icon: const Icon(Icons.videocam, color: Colors.blue),
                   onPressed: () {
-                    _startCall(context, user['id'], user['name'], isVideo: true);
+                    _startCall(context, user['id']!, user['name']!, isVideo: true);
                   },
                 ),
               ],
@@ -55,10 +56,10 @@ class ChatListScreen extends StatelessWidget {
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (_) => ChatScreen(
-                    otherUserId: user['id'],
-                    otherUserName: user['name'],
-                  ),
+              builder: (_) => ChatScreen(
+                otherUserId: user['id']!,
+                otherUserName: user['name']!,
+              ),
                 ),
               );
             },

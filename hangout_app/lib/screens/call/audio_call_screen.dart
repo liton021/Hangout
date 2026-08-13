@@ -1,7 +1,7 @@
 import 'package:agora_rtc_engine/agora_rtc_engine.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../services/call_service.dart';
+import '../../services/call_service.dart';
 
 class AudioCallScreen extends StatefulWidget {
   const AudioCallScreen({super.key});
