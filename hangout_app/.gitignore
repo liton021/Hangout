@@ -1,21 +1,3 @@
-# Miscellaneous
-*.class
-*.log
-*.pyc
-*.swp
-.DS_Store
-.atom/
-.buildlog/
-.history
-.svn/
-migrate_working_dir/
-
-# IntelliJ related
-*.iml
-*.ipr
-*.iws
-.idea/
-
 # Flutter/Dart/Pub related
 **/doc/api/
 **/ios/Flutter/.last_build_id
@@ -26,6 +8,7 @@ migrate_working_dir/
 .pub-cache/
 .pub/
 /build/
+/local.properties
 
 # Symbolication related
 app.*.symbols

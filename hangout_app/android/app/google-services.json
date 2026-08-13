@@ -1,28 +1,20 @@
 {
   "project_info": {
-    "project_number": "676292269702",
-    "project_id": "liyabd",
-    "storage_bucket": "liyabd.firebasestorage.app"
+    "project_number": "123456789",
+    "project_id": "hangout-app",
+    "storage_bucket": "hangout-app.appspot.com"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:676292269702:android:95cbafcf6276c24ed22307",
+        "mobilesdk_app_id": "1:123456789:android:abcdef",
         "android_client_info": {
-          "package_name": "com.liya.liya"
+          "package_name": "com.example.hangout_app"
         }
       },
       "oauth_client": [],
-      "api_key": [
-        {
-          "current_key": "AIzaSyAJHxRTcwUL2sYX3wk22afEGHR0-tQEzFs"
-        }
-      ],
-      "services": {
-        "appinvite_service": {
-          "other_platform_oauth_client": []
-        }
-      }
+      "api_key": [],
+      "services": {}
     }
   ],
   "configuration_version": "1"
