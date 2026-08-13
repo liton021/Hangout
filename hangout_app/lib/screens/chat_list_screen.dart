@@ -1,7 +1,11 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../services/auth_service.dart';
 import '../services/call_service.dart';
+import '../services/chat_service.dart';
+import 'call/audio_call_screen.dart';
+import 'call/video_call_screen.dart';
 import 'chat_screen.dart';
 
 class ChatListScreen extends StatelessWidget {
@@ -22,50 +26,105 @@ class ChatListScreen extends StatelessWidget {
           ),
         ],
       ),
-      body: ListView.builder(
-        itemCount: _demoUsers.length,
-        itemBuilder: (context, index) {
-          final user = _demoUsers[index];
-          if (user['id'] == currentUser?.uid) return const SizedBox.shrink();
+      body: currentUser == null
+          ? const Center(child: CircularProgressIndicator())
+          : StreamBuilder<QuerySnapshot>(
+              stream: context.read<ChatService>().usersStream(),
+              builder: (context, snapshot) {
+                if (snapshot.hasError) {
+                  return Center(child: Text('Error: ${snapshot.error}'));
+                }
+                if (!snapshot.hasData) {
+                  return const Center(child: CircularProgressIndicator());
+                }
 
-          return ListTile(
-            leading: CircleAvatar(
-              backgroundColor: Colors.blue.shade100,
-              child: Text(user['name']![0]),
-            ),
-            title: Text(user['name']!),
-            subtitle: Text(user['email']!),
-            trailing: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                IconButton(
-                  icon: const Icon(Icons.call, color: Colors.green),
-                  onPressed: () {
-                    _startCall(context, user['id']!, user['name']!, isVideo: false);
+                final users = snapshot.data!.docs
+                    .where((doc) => doc.id != currentUser.uid)
+                    .toList();
+
+                if (users.isEmpty) {
+                  return const Center(
+                    child: Padding(
+                      padding: EdgeInsets.all(24),
+                      child: Text(
+                        'No contacts yet.\nSign up with a second account on '
+                        'another device to start chatting and calling.',
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                  );
+                }
+
+                return ListView.builder(
+                  itemCount: users.length,
+                  itemBuilder: (context, index) {
+                    final doc = users[index];
+                    final data = doc.data() as Map<String, dynamic>? ?? {};
+                    final uid = doc.id;
+                    final name =
+                        (data['displayName'] as String?)?.isNotEmpty == true
+                            ? data['displayName'] as String
+                            : 'User';
+                    final email = data['email'] as String? ?? '';
+                    final channelName =
+                        CallService.channelNameFor(currentUser.uid, uid);
+
+                    return ListTile(
+                      leading: CircleAvatar(
+                        backgroundColor: Colors.blue.shade100,
+                        child: Text(name[0].toUpperCase()),
+                      ),
+                      title: Text(name),
+                      subtitle: Text(email),
+                      trailing: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          IconButton(
+                            icon: const Icon(Icons.call, color: Colors.green),
+                            tooltip: 'Audio call',
+                            onPressed: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => AudioCallScreen(
+                                    channelName: channelName,
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.videocam, color: Colors.blue),
+                            tooltip: 'Video call',
+                            onPressed: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => VideoCallScreen(
+                                    channelName: channelName,
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                        ],
+                      ),
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => ChatScreen(
+                              otherUserId: uid,
+                              otherUserName: name,
+                            ),
+                          ),
+                        );
+                      },
+                    );
                   },
-                ),
-                IconButton(
-                  icon: const Icon(Icons.videocam, color: Colors.blue),
-                  onPressed: () {
-                    _startCall(context, user['id']!, user['name']!, isVideo: true);
-                  },
-                ),
-              ],
+                );
+              },
             ),
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-              builder: (_) => ChatScreen(
-                otherUserId: user['id']!,
-                otherUserName: user['name']!,
-              ),
-                ),
-              );
-            },
-          );
-        },
-      ),
       floatingActionButton: FloatingActionButton(
         onPressed: () {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -76,26 +135,4 @@ class ChatListScreen extends StatelessWidget {
       ),
     );
   }
-
-  void _startCall(BuildContext context, String userId, String userName, {required bool isVideo}) async {
-    final callService = context.read<CallService>();
-    await callService.initializeEngine(videoCall: isVideo);
-    await callService.joinChannel('call_$userId');
-
-    if (!context.mounted) return;
-
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => isVideo ? const VideoCallScreen() : const AudioCallScreen(),
-      ),
-    );
-  }
-
-  static const List<Map<String, String>> _demoUsers = [
-    {'id': 'user1', 'name': 'Alice Johnson', 'email': 'alice@example.com'},
-    {'id': 'user2', 'name': 'Bob Smith', 'email': 'bob@example.com'},
-    {'id': 'user3', 'name': 'Charlie Brown', 'email': 'charlie@example.com'},
-    {'id': 'user4', 'name': 'Diana Prince', 'email': 'diana@example.com'},
-  ];
 }

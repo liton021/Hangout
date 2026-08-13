@@ -2,8 +2,13 @@ plugins {
     id "com.android.application"
     id "kotlin-android"
     id "dev.flutter.flutter-gradle-plugin"
-    id "com.google.gms.google-services"
 }
+
+// NOTE: Firebase configuration is intentionally not committed to this repo.
+// To connect the app to your own Firebase project, see the README
+// ("Firebase Setup"). After adding your `google-services.json`, re-enable
+// this plugin line and the matching declaration in android/build.gradle.
+// id "com.google.gms.google-services"
 
 def localProperties = new Properties()
 def localPropertiesFile = rootProject.file('local.properties')
@@ -34,7 +39,9 @@ android {
 
     defaultConfig {
         applicationId "com.example.hangout_app"
-        minSdk 21
+        // Firebase Auth 23.x (bundled with firebase_auth ^5.0.0) requires
+        // API level 23 or higher.
+        minSdk 23
         targetSdk 34
         versionCode flutterVersionCode.toInteger()
         versionName flutterVersionName

@@ -10,6 +10,15 @@
 /build/
 /local.properties
 
+# Android (machine-generated / user-specific)
+android/local.properties
+android/.gradle/
+android/app/.cxx/
+
+# Firebase configuration (user-specific; see README for setup)
+android/app/google-services.json
+ios/Runner/GoogleService-Info.plist
+
 # Symbolication related
 app.*.symbols
 

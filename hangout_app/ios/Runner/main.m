@@ -1,12 +1,9 @@
-#include "FlutterGeneratedPluginRegistrant.h"
+#import <Flutter/Flutter.h>
+#import <UIKit/UIKit.h>
 #import "AppDelegate.h"
 
-@implementation AppDelegate
-
-- (BOOL)application:(UIApplication *)application
-    didFinishLaunchingWithOptions:(NSDictionary *)launchOptions {
-  [GeneratedPluginRegistrant registerWithRegistry:self];
-  return [super application:application didFinishLaunchingWithOptions:launchOptions];
+int main(int argc, char* argv[]) {
+  @autoreleasepool {
+    return UIApplicationMain(argc, argv, nil, NSStringFromClass([AppDelegate class]));
+  }
 }
-
-@end

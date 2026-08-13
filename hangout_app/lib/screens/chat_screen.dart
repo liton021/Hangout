@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../services/auth_service.dart';
+import '../services/call_service.dart';
 import '../services/chat_service.dart';
 import 'call/audio_call_screen.dart';
 import 'call/video_call_screen.dart';
@@ -23,6 +24,28 @@ class ChatScreen extends StatefulWidget {
 class _ChatScreenState extends State<ChatScreen> {
   final TextEditingController _messageController = TextEditingController();
 
+  late final ChatService _chatService;
+  late final AuthService _authService;
+
+  // The deterministic ids shared by both peers — computed once so reads and
+  // writes always target the same chat document and call channel.
+  late final String _chatId;
+  late final String _channelName;
+
+  @override
+  void initState() {
+    super.initState();
+    _chatService = context.read<ChatService>();
+    _authService = context.read<AuthService>();
+
+    final myUid = _authService.user!.uid;
+    _chatId = ChatService.chatIdFor(myUid, widget.otherUserId);
+    _channelName = CallService.channelNameFor(myUid, widget.otherUserId);
+
+    // Make sure the chat document exists up front.
+    _chatService.createOrGetChat(myUid, widget.otherUserId);
+  }
+
   @override
   void dispose() {
     _messageController.dispose();
@@ -33,18 +56,13 @@ class _ChatScreenState extends State<ChatScreen> {
     final content = _messageController.text.trim();
     if (content.isEmpty) return;
 
-    final authService = context.read<AuthService>();
-    final chatService = context.read<ChatService>();
+    final user = _authService.user;
+    if (user == null) return;
 
-    final chatId = await chatService.createOrGetChat(
-      authService.user!.uid,
-      widget.otherUserId,
-    );
-
-    await chatService.sendMessage(
-      chatId,
-      authService.user!.uid,
-      authService.user!.email ?? 'User',
+    await _chatService.sendMessage(
+      _chatId,
+      user.uid,
+      _authService.displayName,
       content,
     );
 
@@ -53,30 +71,31 @@ class _ChatScreenState extends State<ChatScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final authService = context.watch<AuthService>();
-    final chatService = context.watch<ChatService>();
-
-    final chatId = widget.otherUserId;
-
     return Scaffold(
       appBar: AppBar(
         title: Text(widget.otherUserName),
         actions: [
           IconButton(
             icon: const Icon(Icons.call),
+            tooltip: 'Audio call',
             onPressed: () {
               Navigator.push(
                 context,
-                MaterialPageRoute(builder: (_) => const AudioCallScreen()),
+                MaterialPageRoute(
+                  builder: (_) => AudioCallScreen(channelName: _channelName),
+                ),
               );
             },
           ),
           IconButton(
             icon: const Icon(Icons.videocam),
+            tooltip: 'Video call',
             onPressed: () {
               Navigator.push(
                 context,
-                MaterialPageRoute(builder: (_) => const VideoCallScreen()),
+                MaterialPageRoute(
+                  builder: (_) => VideoCallScreen(channelName: _channelName),
+                ),
               );
             },
           ),
@@ -86,7 +105,7 @@ class _ChatScreenState extends State<ChatScreen> {
         children: [
           Expanded(
             child: StreamBuilder<QuerySnapshot>(
-              stream: chatService.getMessages(chatId),
+              stream: _chatService.getMessages(_chatId),
               builder: (context, snapshot) {
                 if (snapshot.hasError) {
                   return Center(child: Text('Error: ${snapshot.error}'));
@@ -105,14 +124,23 @@ class _ChatScreenState extends State<ChatScreen> {
                   reverse: true,
                   itemCount: messages.length,
                   itemBuilder: (context, index) {
-                    final message = messages[index].data() as Map<String, dynamic>;
-                    final isMe = message['senderId'] == authService.user?.uid;
+                    final message =
+                        messages[index].data() as Map<String, dynamic>;
+                    final isMe =
+                        message['senderId'] == _authService.user?.uid;
 
                     return Align(
-                      alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
+                      alignment:
+                          isMe ? Alignment.centerRight : Alignment.centerLeft,
                       child: Container(
-                        margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
-                        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 14),
+                        margin: const EdgeInsets.symmetric(
+                          vertical: 4,
+                          horizontal: 8,
+                        ),
+                        padding: const EdgeInsets.symmetric(
+                          vertical: 10,
+                          horizontal: 14,
+                        ),
                         decoration: BoxDecoration(
                           color: isMe ? Colors.blue : Colors.grey.shade300,
                           borderRadius: BorderRadius.circular(16),
@@ -131,7 +159,9 @@ class _ChatScreenState extends State<ChatScreen> {
                               ),
                             Text(
                               message['content'] ?? '',
-                              style: TextStyle(color: isMe ? Colors.white : Colors.black87),
+                              style: TextStyle(
+                                color: isMe ? Colors.white : Colors.black87,
+                              ),
                             ),
                           ],
                         ),
@@ -153,6 +183,7 @@ class _ChatScreenState extends State<ChatScreen> {
                       hintText: 'Type a message...',
                       border: OutlineInputBorder(),
                     ),
+                    onSubmitted: (_) => _sendMessage(),
                   ),
                 ),
                 const SizedBox(width: 8),

@@ -31,14 +31,25 @@ class _LoginScreenState extends State<LoginScreen> {
     try {
       final authService = context.read<AuthService>();
       if (_isSignUp) {
-        await authService.signUpWithEmail(_emailController.text.trim(), _passwordController.text.trim());
+        await authService.signUpWithEmail(
+          _emailController.text.trim(),
+          _passwordController.text.trim(),
+        );
       } else {
-        await authService.signInWithEmail(_emailController.text.trim(), _passwordController.text.trim());
+        await authService.signInWithEmail(
+          _emailController.text.trim(),
+          _passwordController.text.trim(),
+        );
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString())));
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.toString())),
+      );
     } finally {
-      setState(() => _isLoading = false);
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 
@@ -64,7 +75,12 @@ class _LoginScreenState extends State<LoginScreen> {
                     labelText: 'Email',
                     prefixIcon: Icon(Icons.email_outlined),
                   ),
-                  validator: (value) => value != null && value.contains('@') ? null : 'Enter a valid email',
+                  keyboardType: TextInputType.emailAddress,
+                  autovalidateMode: AutovalidateMode.onUserInteraction,
+                  validator: (value) =>
+                      value != null && value.contains('@')
+                          ? null
+                          : 'Enter a valid email',
                 ),
                 const SizedBox(height: 16),
                 TextFormField(
@@ -74,7 +90,10 @@ class _LoginScreenState extends State<LoginScreen> {
                     prefixIcon: Icon(Icons.lock_outlined),
                   ),
                   obscureText: true,
-                  validator: (value) => value != null && value.length >= 6 ? null : 'Password must be at least 6 characters',
+                  autovalidateMode: AutovalidateMode.onUserInteraction,
+                  validator: (value) => value != null && value.length >= 6
+                      ? null
+                      : 'Password must be at least 6 characters',
                 ),
                 const SizedBox(height: 24),
                 SizedBox(
@@ -89,7 +108,11 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
                 TextButton(
                   onPressed: () => setState(() => _isSignUp = !_isSignUp),
-                  child: Text(_isSignUp ? 'Already have an account? Sign In' : 'Don\'t have an account? Sign Up'),
+                  child: Text(
+                    _isSignUp
+                        ? 'Already have an account? Sign In'
+                        : 'Don\'t have an account? Sign Up',
+                  ),
                 ),
               ],
             ),
