@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<workspace version="6">
+  <component name="DeviceLogPrinter" format="completion" />
+  <component name="ExecutionInfo" />
+  <component name="FlutterWorkspace" version="1">
+    <entry key="flutter.sdk" value="file:///Users/$USER$/development/flutter" />
+    <entry key="flutter.versionName" value="3.35.7" />
+  </component>
+  <component name="RunManager" selected="com.flutter.tooling.FlutterRunConfigurationType">
+    <configuration name="hangout_app" type="com.flutter.tooling.FlutterRunConfigurationType" factoryName="Flutter" nameIsGenerated="true">
+      <option name="additionalArgs" value="" />
+      <option name="filePath" value="$PROJECT_DIR$" />
+      <option name="passArgsToFlutterDirectly" value="true" />
+      <option name="programArguments">
+        <list>
+          <option value="run" />
+        </list>
+      </option>
+      <option name="projectPath" value="$PROJECT_DIR$" />
+      <option name="showTestRunner" value="false" />
+      <option name="useSdk" value="false" />
+    </configuration>
+  </component>
+  <component name="XcodeProjectWorkspace">
+    <option name="file" value="Runner.xcworkspace" />
+  </component>
+  <component name="XcodeProjectWorkspaceManager">
+    <option name="list">
+      <array>
+        <option value="Runner.xcworkspace" />
+      </array>
+    </option>
+  </component>
+</workspace>
