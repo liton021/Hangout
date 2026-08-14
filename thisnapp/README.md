@@ -14,7 +14,7 @@ A free Flutter app for chat, audio calls, and video calls with noise filtering.
 ## Prerequisites
 
 - Flutter SDK (>=3.0.0 <4.0.0)
-- Android Studio / Xcode
+- Android Studio
 - Firebase project
 
 ## Setup Instructions
@@ -42,13 +42,9 @@ flutter pub get
    - Package name: `com.thisnapp`
    - Download `google-services.json`
    - Place it in `android/app/`
-4. Add iOS app:
-   - Bundle ID: `com.thisnapp`
-   - Download `GoogleService-Info.plist`
-   - Place it in `ios/Runner/`
-5. Enable Firestore Database in Firebase Console
-6. Enable Authentication (Email/Password) in Firebase Console
-7. Create Firestore rules:
+4. Enable Firestore Database in Firebase Console
+5. Enable Authentication (Email/Password) in Firebase Console
+6. Create Firestore rules:
 
 ```
 rules_version = '2';
@@ -96,15 +92,10 @@ Add permissions to `android/app/src/main/AndroidManifest.xml`:
 <uses-permission android:name="android.permission.BLUETOOTH" />
 <uses-permission android:name="android.permission.WAKE_LOCK" />
 <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+<uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 ```
 
-### 5. iOS Setup
-
-Open `ios/Runner.xcworkspace` in Xcode and enable:
-- Camera & Microphone permissions
-- Add `NSCameraUsageDescription` and `NSMicrophoneUsageDescription` to `Info.plist`
-
-### 6. Run the app
+### 5. Run the app
 
 ```bash
 flutter run
