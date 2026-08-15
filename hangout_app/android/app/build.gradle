@@ -50,6 +50,36 @@ android {
         release {
             // TODO: configure your own signing config before releasing.
             signingConfig = signingConfigs.debug
+
+            // Shrink + obfuscate Dart-side is handled by Flutter (AOT);
+            // this shrinks the Java/Kotlin side and strips unused resources.
+            minifyEnabled = true
+            shrinkResources = true
+            proguardFiles getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro"
+        }
+    }
+
+    // Agora ships many OPTIONAL native extensions inside its AAR. We only use
+    // AI noise suppression + clear vision (video filters), so drop the rest.
+    // Each excluded lib saves ~1-8 MB per CPU architecture.
+    packagingOptions {
+        jniLibs {
+            excludes += [
+                "**/libagora_screen_capture_extension.so",
+                "**/libagora_segmentation_extension.so",        // virtual background
+                "**/libagora_spatial_audio_extension.so",
+                "**/libagora_content_inspect_extension.so",
+                "**/libagora_face_detection_extension.so",
+                "**/libagora_face_capture_extension.so",
+                "**/libagora_video_quality_analyzer_extension.so",
+                "**/libagora_audio_beat_detection_extension.so",
+                "**/libagora_super_resolution_extension.so",
+                "**/libagora_lip_sync_extension.so",
+                "**/libagora_udrm3_extension.so",
+                "**/libagora_drm_loader_extension.so",
+                "**/libagora_video_av1_encoder_extension.so",   // AV1 codec (big)
+                "**/libagora_video_av1_decoder_extension.so",
+            ]
         }
     }
 }
