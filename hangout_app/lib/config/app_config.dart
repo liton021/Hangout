@@ -14,7 +14,7 @@ class AppConfig {
   /// Agora App ID from https://console.agora.io
   static const String agoraAppId = String.fromEnvironment(
     'AGORA_APP_ID',
-    defaultValue: 'YOUR_AGORA_APP_ID',
+    defaultValue: '8b387fb54fce41519043edc4e9aa0ce4',
   );
 
   /// Optional token. For development you can leave this empty and enable
