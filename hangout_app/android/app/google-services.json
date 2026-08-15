@@ -1,0 +1,39 @@
+{
+  "project_info": {
+    "project_number": "1098185182763",
+    "project_id": "litonsgembd",
+    "storage_bucket": "litonsgembd.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1098185182763:android:afdafbaedb82976126e46e",
+        "android_client_info": {
+          "package_name": "com.example.hangout"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "1098185182763-qmqv65ghs9fl590cpnhnjss4pg3rbbof.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBON-BxLTTAxYtRXi7cUcOVDlg5bH2MzFo"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "1098185182763-qmqv65ghs9fl590cpnhnjss4pg3rbbof.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
