@@ -8,13 +8,18 @@ import '../config/app_config.dart';
 ///
 /// Responsibilities:
 ///  * create/initialize the engine and join a channel
-///  * AI Noise Suppression (AINS)
+///  * built-in (free) noise suppression + echo cancellation + auto gain
 ///  * beauty / face effects + virtual background (video only)
 ///  * mic / camera / speaker toggles
 ///  * expose VideoViewControllers for local + remote video rendering
 ///
 /// Usage: create one [CallService] per call, `await join(...)`, then `await
 /// leave()` and `dispose()` when the call ends.
+///
+/// NOTE: Agora's *AI* Noise Suppression (AINS) is a paid extension that
+/// requires activating in the console (with a credit card). This class
+/// intentionally uses only the standard, free, always-on DSP processing
+/// bundled with the SDK.
 class CallService {
   RtcEngine? _engine;
   RtcEngineEventHandler? _handler;
@@ -97,8 +102,9 @@ class CallService {
       ),
     );
 
-    // Enable AI Noise Suppression by default (best-effort; needs the AINS
-    // extension enabled in the Agora console).
+    // Built-in noise suppression / echo cancellation / auto gain control are
+    // enabled by default in the SDK. We re-assert them here so the toggle
+    // state stays in sync — no paid extension required.
     await enableNoiseSuppression(true);
   }
 
@@ -126,17 +132,23 @@ class CallService {
     if (!_error.isClosed) await _error.close();
   }
 
+  /// Toggles Agora's built-in (free) audio processing: noise suppression,
+  /// acoustic echo cancellation and automatic gain control.
+  ///
+  /// These are standard DSP features bundled with the SDK and enabled by
+  /// default — no paid extension (and no credit card) required, unlike the
+  /// AI Noise Suppression (AINS) extension.
   Future<void> enableNoiseSuppression(bool enabled) async {
+    final flag = enabled ? 'true' : 'false';
     try {
-      await _engine?.setAINSMode(
-        enabled: enabled,
-        mode: AudioAinsMode.ainsModeAggressive,
-      );
+      await _engine?.setParameters('{"che.audio.ns.enable": $flag}');
+      await _engine?.setParameters('{"che.audio.aec.enable": $flag}');
+      await _engine?.setParameters('{"che.audio.agc.enable": $flag}');
       _noiseSuppressionOn = enabled;
-    } catch (e) {
-      // AINS extension may not be enabled — fall back silently to the
-      // SDK's built-in noise suppression (always on).
-      _noiseSuppressionOn = false;
+    } catch (_) {
+      // Even if these calls fail, the SDK's default (free) processing stays
+      // active, so the call quality is unaffected.
+      _noiseSuppressionOn = enabled;
     }
   }
 

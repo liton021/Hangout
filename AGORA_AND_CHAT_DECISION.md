@@ -15,11 +15,14 @@ Your instinct is correct. Agora is the most battle‑tested RTC provider for And
 |---|---|
 | **Free minutes** | **First 10,000 combined RTC minutes every month, free** (recurring) |
 | Base RTC after free | from ~$0.59 / 1,000 min (audio ~$0.99; video SD ~$3.99, HD ~$8.99 per 1,000 min) |
-| **AI Noise Suppression** | **$0.59 / 1,000 min — and it's included in the free 10,000 min** |
+| **Built-in noise suppression / AEC / AGC** | **Free — bundled with the SDK, on by default** |
+| AI Noise Suppression (AINS) | ⚠️ **Paid extension** — must be activated in the console (asks for a credit card). Not used in this project. |
 | 3D Spatial Audio | $0.99 / 1,000 min (included in free 10k) |
 | Beauty / virtual background / video denoise | Bundled in the SDK (no per‑feature fee) |
 
-> **Bottom line:** a solo developer or small app can run entirely on the free 10,000 min/month (≈ 166 hours of call time / month) including the AI noise suppression.
+> **Bottom line:** a solo developer or small app can run entirely on the free
+> 10,000 min/month (≈ 166 hours of call time / month) using the **free built-in
+> noise suppression** — no paid AI extension required.
 
 ### 1.2 Flutter SDK (verified current)
 
@@ -29,26 +32,27 @@ Your instinct is correct. Agora is the most battle‑tested RTC provider for And
 
 ### 1.3 Noise filtering in Agora (the key requirement)
 
-Agora gives you **three layers** of audio cleanup, all free:
+Agora gives you two tiers of audio cleanup:
 
-1. **Built‑in DSP** (always on): Acoustic Echo Cancellation (AEC), Noise Suppression (NS), Automatic Gain Control (AGC).
-2. **AI Noise Suppression (AINS)** — deep‑learning model that removes **100+ types of background noise** (keyboards, fans, traffic, background chatter, crying babies, etc.) and reduces echo/reverberation. Three modes:
-   - `0` Balanced
-   - `1` Aggressive
-   - `2` Aggressive + ultralow latency
-3. **Video denoise** — `setVideoDenoiserOptions()` cleans up noisy/grainy video.
+1. **Built‑in DSP (free, always on)** — Acoustic Echo Cancellation (AEC),
+   Noise Suppression (NS) and Automatic Gain Control (AGC). These ship with the
+   SDK, are enabled by default, and cost nothing. **This is what the app uses.**
+2. **AI Noise Suppression (AINS)** — a deep‑learning model that removes 100+
+   noise types. **⚠️ This is a paid extension**: you must activate it in the
+   Agora console, which requires entering a credit card. The project does
+   **not** use it.
 
-Flutter example:
+You can control the free built-in processing with `setParameters` (no
+extension, no credit card):
 
 ```dart
 final engine = createAgoraRtcEngine();
 await engine.initialize(RtcEngineContext(appId: appId));
 
-// Enable AI Noise Suppression (aggressive mode)
-await engine.setAINSMode(
-  enabled: true,
-  mode: AudioAinsMode.ainsModeAggressive, // or ainsModeBalanced / ainsModeUltralowlatency
-);
+// Free built-in noise suppression + echo cancellation + auto gain control.
+await engine.setParameters('{"che.audio.ns.enable": true}');
+await engine.setParameters('{"che.audio.aec.enable": true}');
+await engine.setParameters('{"che.audio.agc.enable": true}');
 ```
 
 ### 1.4 Video filters & effects (free, bundled)
@@ -127,7 +131,7 @@ Open‑source, no Google lock‑in, predictable pricing. But realtime connection
 | Auth | Firebase Auth | `firebase_auth` |
 | **Chat / messaging** | **Firestore (realtime) + FCM push** | `cloud_firestore`, `firebase_messaging` |
 | **Audio/Video calls** | **Agora RTC** | `agora_rtc_engine` ^6.6.3 |
-| **Noise filter** | Agora **AI Noise Suppression (AINS)** | `setAINSMode()` |
+| **Noise filter** | Agora **built-in NS + AEC + AGC (free)** | `setParameters('{"che.audio.ns.enable": …}')` |
 | **Video filters** | Agora beauty + virtual background + denoise | `setBeautyEffectOptions()`, `enableVirtualBackground()` |
 | Call invites / ringing | FCM high‑priority + full‑screen intent + foreground service | `firebase_messaging` + Android manifest |
 | UI | `flutter_chat_ui` (chat) + custom Material 3 (calls, contacts, shell) | `flutter_chat_ui`, `flutter_animate` |
@@ -165,7 +169,7 @@ dependencies:
 1. **Caller taps call** → app publishes to Firestore `calls/{id}` and sends a high‑priority **FCM** data message to the callee.
 2. **Callee's device** receives FCM → Android **full‑screen intent** launches the incoming‑call UI and starts a **foreground service** (`FOREGROUND_SERVICE_PHONE_CALL`), even if the app is killed.
 3. **Both join the same Agora channel** (channel name = call id) → `joinChannel()`.
-4. **Filters applied**: `setAINSMode(true, aggressive)` for noise‑free audio; `setBeautyEffectOptions(...)` + `enableVirtualBackground(...)` for video filters.
+4. **Filters applied**: built-in `setParameters('{"che.audio.ns.enable": true}')` (plus AEC/AGC) for noise-free audio; `setBeautyEffectOptions(...)` + `enableVirtualBackground(...)` for video filters.
 5. On end call, both `leaveChannel()` and the Firestore call doc is marked ended.
 
 ---

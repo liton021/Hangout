@@ -5,7 +5,8 @@ featuring:
 
 - 💬 1-on-1 real-time messaging (Firestore)
 - 📞 Audio & video calls (Agora RTC)
-- 🎙️ **AI noise suppression** (Agora AINS — removes 100+ noise types)
+- 🎙️ **Built-in noise suppression** (free SDK DSP: noise suppression + echo
+  cancellation + auto gain — no paid extension)
 - ✨ **Video filters** — beauty/skin smoothing, background blur, camera flip
 - 🎨 Modern Material 3 UI (light + dark), Riverpod state management
 
@@ -13,7 +14,7 @@ Stack (see `../RESEARCH_REPORT.md` and `../AGORA_AND_CHAT_DECISION.md`):
 
 | Layer | Technology |
 |---|---|
-| Calls + noise filtering + filters | **Agora** `agora_rtc_engine` |
+| Calls + noise filtering + filters | **Agora** `agora_rtc_engine` (built-in, free) |
 | Auth | Firebase Auth |
 | Chat + call signaling | Cloud Firestore |
 | Push | Firebase Cloud Messaging |
@@ -52,8 +53,11 @@ Stack (see `../RESEARCH_REPORT.md` and `../AGORA_AND_CHAT_DECISION.md`):
    "App ID + App Certificate" and use *App ID only* (no token) — the app
    already passes an empty token. For production, run an Agora token server and
    pass the token via `--dart-define=AGORA_TOKEN=...`.
-3. In **Project → Extensions**, activate **AI Noise Suppression** so the
-   `setAINSMode` call takes effect (the app falls back gracefully if it's off).
+
+> **No paid extensions needed.** Noise suppression, echo cancellation and auto
+> gain control use Agora's built-in (free) DSP — they are on by default. Do
+> **not** activate the "AI Noise Suppression" extension: it is paid and asks
+> for a credit card.
 
 ## 3. Run
 
@@ -80,7 +84,7 @@ flutter build apk --release --dart-define=AGORA_APP_ID=YOUR_AGORA_APP_ID
    **video** or **audio**.
 4. Device B shows the **incoming call** screen → Accept.
 5. During a video call use **Beauty**, **Blur**, and **Flip**; during an audio
-   call toggle **Noise AI**.
+   call toggle **Noise** (built-in noise suppression + echo cancellation).
 
 ---
 
@@ -98,7 +102,7 @@ lib/
 │   ├── user_service.dart
 │   ├── chat_service.dart      # Firestore messaging
 │   ├── push_service.dart      # FCM
-│   └── call_service.dart      # Agora engine wrapper (AINS, beauty, blur)
+│   └── call_service.dart      # Agora engine wrapper (noise NS/AEC/AGC, beauty, blur)
 ├── providers/                 # Riverpod providers + call controller
 ├── screens/
 │   ├── auth/                  # login, register
@@ -145,7 +149,9 @@ calls/{id}             -> { callerId, callerName, calleeId, channelName, type, s
   message. Add the file from Firebase (step 1).
 - **Call fails to connect** → confirm both devices have network access and the
   Agora App ID is correct (and passed via `--dart-define`).
-- **AINS/beauty has no effect** → activate the corresponding Agora Console
-  extensions; the app logs nothing but silently falls back.
+- **Noise/beauty has no effect** → noise reduction uses the free built-in
+  processing (on by default, no console extension needed); for beauty/background
+  blur, ensure the Agora "Virtual Background" extension is enabled in the
+  console if you want those effects.
 - **No incoming call UI** → both apps must be in the foreground (see roadmap
   for background calls).

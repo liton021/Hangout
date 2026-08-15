@@ -19,7 +19,12 @@ Two genuinely "free" paths exist, and the right one depends on how much infrastr
 | **Video filters** | ML Kit segmentation + custom shaders | Built in (beauty, virtual background) |
 | **Effort** | High | Low–medium |
 
-**Top recommendation (chosen):** **Agora RTC for calls** (`agora_rtc_engine`, free 10,000 min/month, built‑in AI Noise Suppression + beauty/virtual‑background filters) **+ Firebase for messaging/auth/push** (Firestore + FCM, free Spark tier). Full justification and the chat‑layer decision are in `AGORA_AND_CHAT_DECISION.md`.
+**Top recommendation (chosen):** **Agora RTC for calls** (`agora_rtc_engine`, free 10,000 min/month, free built‑in noise suppression/AEC/AGC + beauty/virtual‑background filters) **+ Firebase for messaging/auth/push** (Firestore + FCM, free Spark tier). Full justification and the chat‑layer decision are in `AGORA_AND_CHAT_DECISION.md`.
+
+> ⚠️ **Correction (Aug 2026):** Agora's *AI* Noise Suppression (AINS) is a **paid
+> extension** (requires console activation + credit card) and is **not** used.
+> The app uses Agora's free built-in noise suppression / echo cancellation /
+> auto gain control instead.
 
 If "free" must mean *no vendor, ever*, the best stack is **`flutter_webrtc` + LiveKit (self‑hosted, Apache‑2.0) + DeepFilterNet‑3 / RNNoise (audio noise) + Google ML Kit (video background blur) + Supabase or Firebase (chat) + `flutter_chat_ui` (modern UI)**.
 
@@ -162,10 +167,10 @@ If you don't want to build the audio pipeline yourself:
 | Auth + user store | Firebase Auth + Firestore | Free, instant |
 | Messaging | Firestore realtime listeners + FCM push | Free, offline cache, push bundled |
 | Push / call invites | FCM + full‑screen intent + foreground service | Required on Android |
-| **Calls (audio+video)** | **Agora RTC (`agora_rtc_engine`)** | 10,000 free min/mo; built‑in **AI Noise Suppression (AINS) + beauty + face shaping + virtual background + video denoise** |
+| **Calls (audio+video)** | **Agora RTC (`agora_rtc_engine`)** | 10,000 free min/mo; free built‑in **noise suppression + echo cancellation + auto gain** + beauty + face shaping + virtual background + video denoise |
 | UI | `flutter_chat_ui` (chat) + custom Material 3 (calls/contacts) | Modern, backend‑agnostic chat UI |
 
-**Why this wins for your requirements:** Agora bundles the **best noise filtering (AI Noise Suppression, ~100+ noise types) *and* video filters (beauty, virtual background, denoise) into one free SDK**, and Firebase covers messaging + the push notifications that a chat/call app cannot work without — all for $0.
+**Why this wins for your requirements:** Agora bundles **noise filtering (free built-in NS/AEC/AGC) *and* video filters (beauty, virtual background, denoise) into one SDK**, and Firebase covers messaging + the push notifications that a chat/call app cannot work without — all for $0 (the paid AI Noise Suppression extension is unnecessary).
 
 ### 🥈 Path A — Fully free, open‑source, no vendor
 

@@ -149,7 +149,7 @@ class _AudioCallScreenState extends ConsumerState<AudioCallScreen> {
                   CallActionButton(
                     icon: Icons.hearing,
                     active: _noiseSuppression,
-                    label: 'Noise AI',
+                    label: 'Noise',
                     onPressed: () async {
                       setState(() => _noiseSuppression = !_noiseSuppression);
                       await _service.enableNoiseSuppression(_noiseSuppression);
