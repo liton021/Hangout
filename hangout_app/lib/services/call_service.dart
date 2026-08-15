@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:agora_rtc_engine/agora_rtc_engine.dart';
 
 import '../config/app_config.dart';
+import 'token_service.dart';
 
 /// Wraps the Agora RTC engine for one call session.
 ///
@@ -69,6 +70,19 @@ class CallService {
     _channelName = channelName;
     _isVideo = isVideo;
 
+    // Secured mode: fetch a per-channel token from the token server.
+    // Testing mode (no server configured): join token-less / static token.
+    String token = AppConfig.agoraToken;
+    if (AppConfig.useTokenServer) {
+      try {
+        token = await TokenService.fetchRtcToken(channelName);
+      } catch (e) {
+        final msg = 'Could not fetch call token: $e';
+        _error.add(msg);
+        throw StateError(msg);
+      }
+    }
+
     final engine = createAgoraRtcEngine();
     _engine = engine;
 
@@ -91,6 +105,17 @@ class CallService {
       onLeaveChannel: (connection, stats) {
         if (!_leftChannel.isCompleted) _leftChannel.complete();
       },
+      // Fired ~30s before the token expires: fetch a fresh one and renew,
+      // so long calls are not dropped in secured mode.
+      onTokenPrivilegeWillExpire: (connection, currentToken) async {
+        if (!AppConfig.useTokenServer) return;
+        try {
+          final fresh = await TokenService.fetchRtcToken(_channelName);
+          await _engine?.renewToken(fresh);
+        } catch (e) {
+          _error.add('Token renewal failed: $e');
+        }
+      },
     );
     engine.registerEventHandler(_handler!);
 
@@ -101,7 +126,7 @@ class CallService {
     }
 
     await engine.joinChannel(
-      token: AppConfig.agoraToken,
+      token: token,
       channelId: _channelName,
       uid: 0,
       options: const ChannelMediaOptions(

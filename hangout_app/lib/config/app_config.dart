@@ -1,15 +1,17 @@
 /// Central configuration for Hangout.
 ///
 /// ══════════════════════════════════════════════════════════════════════
-///  HOW TO CONFIGURE AGORA (voice/video calls)
+///  HOW TO CONFIGURE AGORA (App ID + Token / secured mode)
 /// ══════════════════════════════════════════════════════════════════════
-///  1. Go to https://console.agora.io  →  Projects  →  your project.
-///  2. Copy the "App ID".
-///  3. Paste it into [_agoraAppId] below, replacing the placeholder.
-///  4. In the Agora console, make sure the project's authentication is set
-///     to "App ID" (testing mode / no token) — otherwise you must also
-///     supply a token in [_agoraToken].
-///  5. Rebuild the app. Done — calls will work.
+///  1. https://console.agora.io → Projects → your project → copy App ID.
+///     Paste it into [_agoraAppId] below.
+///  2. Deploy the token server in `token_server/` (see its README) and
+///     paste its URL into [_tokenServerUrl] below.
+///  3. Rebuild the app. Calls now use per-channel tokens automatically.
+///
+///  TESTING-MODE FALLBACK: if your Agora project uses "App ID" (testing)
+///  auth instead, just leave [_tokenServerUrl] EMPTY — the app will join
+///  channels without a token.
 /// ══════════════════════════════════════════════════════════════════════
 class AppConfig {
   AppConfig._();
@@ -19,11 +21,15 @@ class AppConfig {
   // ────────────────────────────────────────────────────────────────────
   static const String _agoraAppId = 'PASTE_YOUR_AGORA_APP_ID_HERE';
 
-  /// Optional Agora token.
-  ///
-  /// Leave EMPTY ('') when the Agora project is in "App ID" (testing) auth
-  /// mode. If your project uses "App ID + Token" mode, paste a temp token
-  /// here for testing — for production you should run a token server.
+  // ────────────────────────────────────────────────────────────────────
+  //  ▼▼▼  PASTE YOUR TOKEN SERVER URL BELOW (secured mode only)  ▼▼▼
+  //  e.g. 'https://hangout-token-server.yourname.workers.dev'
+  //  Leave EMPTY ('') for testing-mode (App ID only) projects.
+  // ────────────────────────────────────────────────────────────────────
+  static const String _tokenServerUrl = '';
+
+  /// Optional static token (dev only). Normally leave empty — when
+  /// [_tokenServerUrl] is set, tokens are fetched per call automatically.
   static const String _agoraToken = '';
 
   // ────────────────────────────────────────────────────────────────────
@@ -37,12 +43,21 @@ class AppConfig {
     defaultValue: _agoraAppId,
   );
 
-  /// Effective token. A `--dart-define=AGORA_TOKEN=...` build flag, if
-  /// provided, overrides the hard-coded value above.
+  /// Effective static token (see [_agoraToken]).
   static const String agoraToken = String.fromEnvironment(
     'AGORA_TOKEN',
     defaultValue: _agoraToken,
   );
+
+  /// Effective token server URL. `--dart-define=TOKEN_SERVER_URL=...`
+  /// overrides the hard-coded value above.
+  static const String tokenServerUrl = String.fromEnvironment(
+    'TOKEN_SERVER_URL',
+    defaultValue: _tokenServerUrl,
+  );
+
+  /// True when a token server is configured (secured mode).
+  static bool get useTokenServer => tokenServerUrl.isNotEmpty;
 
   /// True once a real App ID has been configured (either in code or via
   /// --dart-define). Used to show a helpful error instead of a dead call
