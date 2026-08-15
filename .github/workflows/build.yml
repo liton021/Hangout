@@ -32,15 +32,15 @@ jobs:
         working-directory: hangout_app
         run: flutter pub get
 
-      - name: Build debug APK
+      - name: Build release APK
         working-directory: hangout_app
-        run: flutter build apk --debug
+        run: flutter build apk --release
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
           name: release-apk
-          path: hangout_app/build/app/outputs/flutter-apk/app-debug.apk
+          path: hangout_app/build/app/outputs/flutter-apk/app-release.apk
           retention-days: 90
 
       - name: Upload APK to GitHub Release
@@ -49,7 +49,7 @@ jobs:
         with:
           tag_name: v-${{ github.sha }}
           name: Release ${{ github.sha }}
-          files: hangout_app/build/app/outputs/flutter-apk/app-debug.apk
+          files: hangout_app/build/app/outputs/flutter-apk/app-release.apk
           draft: false
           prerelease: false
         env:
