@@ -58,6 +58,14 @@ class CallService {
     required String channelName,
     required bool isVideo,
   }) async {
+    if (!AppConfig.isConfigured) {
+      const msg = 'Agora App ID is not configured. '
+          'Open lib/config/app_config.dart and paste your App ID '
+          '(from https://console.agora.io) into _agoraAppId.';
+      _error.add(msg);
+      throw StateError(msg);
+    }
+
     _channelName = channelName;
     _isVideo = isVideo;
 
