@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../models/app_user.dart';
 import '../models/call_data.dart';
+import 'providers.dart';
 
 /// State of the call signaling controller.
 class CallControllerState {

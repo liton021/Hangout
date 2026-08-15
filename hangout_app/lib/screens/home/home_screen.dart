@@ -110,7 +110,6 @@ class _ChatsTab extends ConsumerWidget {
               chat: chat,
               peer: peer,
               onTap: () {
-                if (peer == null) return;
                 Navigator.of(context).push(
                   MaterialPageRoute(
                     builder: (_) => ChatScreen(peer: peer, chatId: chat.chatId),
@@ -124,7 +123,7 @@ class _ChatsTab extends ConsumerWidget {
     );
   }
 
-  AppUser? _peerOf(
+  AppUser _peerOf(
       ChatSummary chat, WidgetRef ref, Map<String, AppUser> byId) {
     final me = ref.watch(authStateProvider).value?.uid;
     final peerId = chat.participants.firstWhere((p) => p != me,
