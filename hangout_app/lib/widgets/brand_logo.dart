@@ -35,24 +35,42 @@ class BrandLogo extends StatelessWidget {
 class _LogoPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
+    final unit = size.shortestSide;
     final paint = Paint()..color = Colors.white;
     final bubble = RRect.fromRectAndRadius(
-      Rect.fromLTWH(size * .21, size * .22, size * .58, size * .47),
-      Radius.circular(size * .16),
+      Rect.fromLTWH(
+        size.width * .21,
+        size.height * .22,
+        size.width * .58,
+        size.height * .47,
+      ),
+      Radius.circular(unit * .16),
     );
     canvas.drawRRect(bubble, paint);
 
     final tail = Path()
-      ..moveTo(size * .31, size * .64)
-      ..lineTo(size * .27, size * .79)
-      ..lineTo(size * .46, size * .67)
+      ..moveTo(size.width * .31, size.height * .64)
+      ..lineTo(size.width * .27, size.height * .79)
+      ..lineTo(size.width * .46, size.height * .67)
       ..close();
     canvas.drawPath(tail, paint);
 
     final cutout = Paint()..color = AppColors.primary;
-    canvas.drawCircle(Offset(size * .40, size * .455), size * .038, cutout);
-    canvas.drawCircle(Offset(size * .51, size * .455), size * .038, cutout);
-    canvas.drawCircle(Offset(size * .62, size * .455), size * .038, cutout);
+    canvas.drawCircle(
+      Offset(size.width * .40, size.height * .455),
+      unit * .038,
+      cutout,
+    );
+    canvas.drawCircle(
+      Offset(size.width * .51, size.height * .455),
+      unit * .038,
+      cutout,
+    );
+    canvas.drawCircle(
+      Offset(size.width * .62, size.height * .455),
+      unit * .038,
+      cutout,
+    );
   }
 
   @override
