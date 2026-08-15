@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../models/call_data.dart';
 import '../../providers/call_controller.dart';
 import '../../providers/providers.dart';
+import '../../services/permission_service.dart';
 import '../../theme/app_theme.dart';
 import 'audio_call_screen.dart';
 import 'video_call_screen.dart';
@@ -52,6 +53,13 @@ class _IncomingCallScreenState extends ConsumerState<IncomingCallScreen> {
   }
 
   Future<void> _accept() async {
+    // Ask for mic (+ camera for video) before joining, so the call doesn't
+    // start silently without them (Android 13+ runtime prompt).
+    final ok = await PermissionService.ensureForCall(
+      context,
+      video: widget.call.type == CallType.video,
+    );
+    if (!ok || !mounted) return;
     final accepted = await ref.read(callControllerProvider.notifier).accept();
     if (accepted == null || !mounted) return;
     Navigator.of(context).pushReplacement(

@@ -9,6 +9,7 @@ import '../../models/app_user.dart';
 import '../../models/call_data.dart';
 import '../../providers/call_controller.dart';
 import '../../providers/providers.dart';
+import '../../services/permission_service.dart';
 import '../../theme/app_theme.dart';
 import '../call/audio_call_screen.dart';
 import '../call/video_call_screen.dart';
@@ -93,6 +94,9 @@ class _CallsTabState extends ConsumerState<CallsTab> {
   }
 
   Future<void> _callBack(AppUser peer, CallType type) async {
+    final ok =
+        await PermissionService.ensureForCall(context, video: type == CallType.video);
+    if (!ok) return;
     final me = ref.read(currentAppUserProvider).value;
     if (me == null) return;
     final call = await ref.read(callControllerProvider.notifier).startCall(

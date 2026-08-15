@@ -1,10 +1,12 @@
 import 'dart:async';
 
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../models/call_data.dart';
 import '../../providers/call_controller.dart';
+import '../../providers/providers.dart';
 import '../../services/call_service.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/call_action_button.dart';
@@ -34,11 +36,14 @@ class _AudioCallScreenState extends ConsumerState<AudioCallScreen> {
 
   int _seconds = 0;
   Timer? _timer;
+  StreamSubscription<DocumentSnapshot>? _statusSub;
+  bool _ending = false;
 
   @override
   void initState() {
     super.initState();
     _setupListeners();
+    _listenCallStatus();
     _start();
   }
 
@@ -54,15 +59,35 @@ class _AudioCallScreenState extends ConsumerState<AudioCallScreen> {
     });
     _service.onRemoteLeft.listen((_) {
       if (!mounted) return;
-      setState(() {
-        _ringing = true;
-        _timer?.cancel();
-        _timer = null;
-      });
+      // The other person hung up — end the call on this side too, instead of
+      // going back to "Ringing…" / waiting forever.
+      _finishCall(markEnded: true);
     });
     _service.onError.listen((msg) {
       if (!mounted) return;
       setState(() => _error = msg);
+    });
+  }
+
+  /// Watches the Firestore call doc so the screen ends itself when the
+  /// caller cancels, the callee rejects, or either side ends the call.
+  void _listenCallStatus() {
+    _statusSub = ref
+        .read(firestoreProvider)
+        .collection('calls')
+        .doc(widget.call.id)
+        .snapshots()
+        .listen((doc) {
+      if (!mounted || _ending) return;
+      if (!doc.exists) {
+        // Call record was removed — nothing left to wait for.
+        _finishCall(markEnded: false);
+        return;
+      }
+      final status = CallStatus.fromName(doc.data()?['status'] as String?);
+      if (status != CallStatus.ringing && status != CallStatus.ongoing) {
+        _finishCall(markEnded: false);
+      }
     });
   }
 
@@ -93,7 +118,32 @@ class _AudioCallScreenState extends ConsumerState<AudioCallScreen> {
       _peerName.isNotEmpty ? _peerName[0].toUpperCase() : '?';
 
   Future<void> _endCall() async {
+    if (_ending) return;
+    _ending = true;
     await ref.read(callControllerProvider.notifier).end(widget.call);
+    await _service.leave();
+    if (mounted) Navigator.of(context).pop();
+  }
+
+  /// Ends this side of the call (leaves the channel and closes the screen).
+  ///
+  /// [markEnded] additionally records `ended` in Firestore — used when the
+  /// remote vanished from the channel without updating the doc (e.g. the app
+  /// was killed), so the call history stays accurate.
+  Future<void> _finishCall({bool markEnded = false}) async {
+    if (_ending) return;
+    _ending = true;
+    _timer?.cancel();
+    _timer = null;
+    if (markEnded) {
+      try {
+        await ref
+            .read(firestoreProvider)
+            .collection('calls')
+            .doc(widget.call.id)
+            .set({'status': CallStatus.ended.name}, SetOptions(merge: true));
+      } catch (_) {}
+    }
     await _service.leave();
     if (mounted) Navigator.of(context).pop();
   }
@@ -101,6 +151,7 @@ class _AudioCallScreenState extends ConsumerState<AudioCallScreen> {
   @override
   void dispose() {
     _timer?.cancel();
+    _statusSub?.cancel();
     _service.dispose();
     super.dispose();
   }

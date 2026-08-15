@@ -7,6 +7,7 @@ import '../../models/call_data.dart';
 import '../../models/chat_summary.dart';
 import '../../providers/call_controller.dart';
 import '../../providers/providers.dart';
+import '../../services/permission_service.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/avatar.dart';
 import '../../widgets/brand_logo.dart';
@@ -29,6 +30,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
   final _chatSearch = TextEditingController();
   final _contactSearch = TextEditingController();
+  bool _askedPermissions = false;
 
   static const _titles = ['Chats', 'Contacts', 'Calls', 'Settings'];
 
@@ -38,7 +40,16 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final me = ref.read(authStateProvider).value;
       if (me != null) ref.read(callControllerProvider.notifier).init(me.uid);
+      _requestCallPermissionsOnLaunch();
     });
+  }
+
+  /// Asks for camera + microphone once, on first launch, so the system
+  /// permission prompt appears before the first call instead of mid-call.
+  Future<void> _requestCallPermissionsOnLaunch() async {
+    if (_askedPermissions) return;
+    _askedPermissions = true;
+    await PermissionService.ensureForCall(context, video: true);
   }
 
   @override
@@ -619,6 +630,10 @@ class _ContactsTab extends ConsumerWidget {
 
   Future<void> _startCall(
       BuildContext context, WidgetRef ref, AppUser peer, CallType type) async {
+    // The user must grant mic/camera before we create the call.
+    final ok =
+        await PermissionService.ensureForCall(context, video: type == CallType.video);
+    if (!ok) return;
     final me = ref.read(currentAppUserProvider).value;
     if (me == null) return;
     final call = await ref.read(callControllerProvider.notifier).startCall(

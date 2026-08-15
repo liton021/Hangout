@@ -8,6 +8,7 @@ import '../../models/call_data.dart';
 import '../../models/chat_message.dart';
 import '../../providers/call_controller.dart';
 import '../../providers/providers.dart';
+import '../../services/permission_service.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/avatar.dart';
 import '../../widgets/presence_dot.dart';
@@ -83,6 +84,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   }
 
   Future<void> _startCall(CallType type) async {
+    final ok =
+        await PermissionService.ensureForCall(context, video: type == CallType.video);
+    if (!ok) return;
     final me = ref.read(currentAppUserProvider).value;
     if (me == null) return;
     final call = await ref.read(callControllerProvider.notifier).startCall(

@@ -33,6 +33,24 @@ class CallService {
   bool _beautyOn = false;
   bool _backgroundBlurOn = false;
 
+  // ── Adaptive video quality (silent, per design) ──────────────────────────
+  // Starts at 720p@30. When the network degrades, drops one step at a time
+  // to 480p@24 then 360p@24; when it recovers, climbs back up. The bitrate
+  // is always the SDK's natural/recommended value for the resolution, so
+  // the user is never notified and quality stays balanced.
+  static const List<_VideoStep> _videoSteps = [
+    _VideoStep(width: 1280, height: 720, frameRate: 30),
+    _VideoStep(width: 848, height: 480, frameRate: 24),
+    _VideoStep(width: 640, height: 360, frameRate: 24),
+  ];
+
+  int _videoStepIndex = 0;
+  Timer? _degradeTimer;
+  Timer? _upgradeTimer;
+
+  /// Index into [_videoSteps] currently applied (0 = 720p@30).
+  int get currentVideoStep => _videoStepIndex;
+
   final _joined = Completer<void>();
   final _remoteUid = StreamController<int>.broadcast();
   final _remoteLeft = StreamController<int>.broadcast();
@@ -102,6 +120,12 @@ class CallService {
       onUserOffline: (connection, remoteUid, reason) {
         _remoteLeft.add(remoteUid);
       },
+      // Adapts the encoding quality to the network, silently: 720p@30 →
+      // 480p@24 → 360p@24, and back up when the network recovers.
+      onNetworkQuality: (connection, remoteUid, txQuality, rxQuality) {
+        if (!_isVideo || remoteUid == 0) return;
+        _onNetworkQuality(txQuality.index, rxQuality.index);
+      },
       onLeaveChannel: (connection, stats) {
         if (!_leftChannel.isCompleted) _leftChannel.complete();
       },
@@ -122,6 +146,8 @@ class CallService {
     await engine.enableAudio();
     if (_isVideo) {
       await engine.enableVideo();
+      // 720p@30 with the SDK's natural bitrate for that resolution.
+      await _applyVideoStep();
       await engine.startPreview();
     }
 
@@ -143,6 +169,10 @@ class CallService {
 
   /// Leaves the channel and releases the engine. Safe to call multiple times.
   Future<void> leave() async {
+    _degradeTimer?.cancel();
+    _upgradeTimer?.cancel();
+    _degradeTimer = null;
+    _upgradeTimer = null;
     final engine = _engine;
     if (engine == null) return;
     try {
@@ -217,6 +247,71 @@ class CallService {
     } catch (_) {}
   }
 
+  // ── Adaptive video quality ladder ────────────────────────────────────────
+  // QualityType values (Agora): 0 unknown · 1 excellent · 2 good · 3 poor ·
+  // 4 bad · 5 very bad · 6 down. We react to the worse of up/downlink and
+  // only move one step at a time with delays, so it never visibly flaps.
+
+  void _onNetworkQuality(int txQuality, int rxQuality) {
+    final worst = txQuality >= rxQuality ? txQuality : rxQuality;
+    if (worst == 0) return; // unknown — do nothing yet
+
+    final poor = worst >= 3;
+    if (poor) {
+      // Network is struggling: drop one step after 4s of confirmation.
+      _upgradeTimer?.cancel();
+      _upgradeTimer = null;
+      _degradeTimer ??= Timer(const Duration(seconds: 4), () {
+        _degradeTimer = null;
+        _stepDown();
+      });
+    } else if (_videoStepIndex > 0) {
+      // Network recovered: climb back up after 12s of good quality.
+      _degradeTimer?.cancel();
+      _degradeTimer = null;
+      _upgradeTimer ??= Timer(const Duration(seconds: 12), () {
+        _upgradeTimer = null;
+        _stepUp();
+      });
+    } else {
+      _degradeTimer?.cancel();
+      _upgradeTimer?.cancel();
+      _degradeTimer = null;
+      _upgradeTimer = null;
+    }
+  }
+
+  void _stepDown() {
+    if (_videoStepIndex >= _videoSteps.length - 1) return;
+    _videoStepIndex++;
+    _applyVideoStep();
+  }
+
+  void _stepUp() {
+    if (_videoStepIndex <= 0) return;
+    _videoStepIndex--;
+    _applyVideoStep();
+  }
+
+  /// Applies the current ladder step. The bitrate is left at the SDK's
+  /// recommended "standard" value for the resolution + frame rate (0 =
+  /// standard/natural bitrate mode) — 720p@30 keeps full quality, while
+  /// 480p/360p stay efficient on slow networks.
+  Future<void> _applyVideoStep() async {
+    final step = _videoSteps[_videoStepIndex];
+    try {
+      await _engine?.setVideoEncoderConfiguration(VideoEncoderConfiguration(
+        dimensions: VideoDimensions(width: step.width, height: step.height),
+        frameRate: step.frameRate,
+        bitrate: 0, // natural bitrate chosen by the SDK for this step
+        orientationMode: OrientationMode.orientationModeAdaptive,
+        degradationPreference: DegradationPreference.maintainFramerate,
+      ));
+    } catch (_) {
+      // Keep the previous configuration on failure.
+    }
+  }
+
   Future<void> toggleMic() async {
     _micOn = !_micOn;
     await _engine?.muteLocalAudioStream(!_micOn);
@@ -252,4 +347,17 @@ class CallService {
       connection: RtcConnection(channelId: _channelName),
     );
   }
+}
+
+/// One rung of the adaptive video-quality ladder.
+class _VideoStep {
+  const _VideoStep({
+    required this.width,
+    required this.height,
+    required this.frameRate,
+  });
+
+  final int width;
+  final int height;
+  final int frameRate;
 }
