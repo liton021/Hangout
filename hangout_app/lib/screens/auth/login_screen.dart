@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../providers/providers.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/brand_logo.dart';
+import '../../widgets/gradient_button.dart';
 import 'register_screen.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
@@ -62,134 +63,151 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final dark = Theme.of(context).brightness == Brightness.dark;
     return Scaffold(
-      body: Stack(
-        children: [
-          Positioned(
-            top: -120,
-            right: -110,
-            child: Container(
-              width: 300,
-              height: 300,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: scheme.primary.withOpacity(.09),
+      body: Container(
+        decoration: BoxDecoration(
+          gradient:
+              dark ? AppColors.darkCanvasGradient : AppColors.canvasGradient,
+        ),
+        child: Stack(
+          children: [
+            // Flat, colorful accents (report §3).
+            Positioned(
+              top: -100,
+              right: -90,
+              child: Container(
+                width: 260,
+                height: 260,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: dark
+                      ? AppColors.darkBubbleIn
+                      : AppColors.softAqua.withOpacity(.30),
+                ),
               ),
             ),
-          ),
-          SafeArea(
-            child: Center(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 30),
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 420),
-                  child: AutofillGroup(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        const Align(
-                          alignment: Alignment.centerLeft,
-                          child: BrandLogo(size: 62, showShadow: true),
-                        ),
-                        const SizedBox(height: 34),
-                        Text('Welcome back',
-                            style: Theme.of(context).textTheme.headlineLarge),
-                        const SizedBox(height: 9),
-                        Text('Sign in and pick up where you left off.',
+            Positioned(
+              bottom: -120,
+              left: -100,
+              child: Container(
+                width: 300,
+                height: 300,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: dark
+                      ? AppColors.darkBubbleOut
+                      : AppColors.paleMint.withOpacity(.9),
+                ),
+              ),
+            ),
+            SafeArea(
+              child: Center(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 30),
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 420),
+                    child: AutofillGroup(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          const Align(
+                            alignment: Alignment.centerLeft,
+                            child: BrandLogo(size: 64, showShadow: true),
+                          ),
+                          const SizedBox(height: 36),
+                          Text('Welcome back',
+                              style: Theme.of(context).textTheme.headlineLarge),
+                          const SizedBox(height: 9),
+                          Text(
+                            'Sign in and pick up where you left off.',
                             style: TextStyle(
-                              color: scheme.onSurfaceVariant,
+                              color: dark ? Colors.white60 : AppColors.sageGray,
                               fontSize: 16,
-                            )),
-                        const SizedBox(height: 34),
-                        TextField(
-                          controller: _email,
-                          keyboardType: TextInputType.emailAddress,
-                          autofillHints: const [AutofillHints.email],
-                          decoration: const InputDecoration(
-                            labelText: 'Email address',
-                            prefixIcon: Icon(Icons.alternate_email_rounded),
-                          ),
-                        ),
-                        const SizedBox(height: 14),
-                        TextField(
-                          controller: _password,
-                          obscureText: _obscure,
-                          autofillHints: const [AutofillHints.password],
-                          onSubmitted: (_) => _loading ? null : _signIn(),
-                          decoration: InputDecoration(
-                            labelText: 'Password',
-                            prefixIcon: const Icon(Icons.lock_outline_rounded),
-                            suffixIcon: IconButton(
-                              tooltip: _obscure ? 'Show password' : 'Hide password',
-                              onPressed: () => setState(() => _obscure = !_obscure),
-                              icon: Icon(_obscure
-                                  ? Icons.visibility_outlined
-                                  : Icons.visibility_off_outlined),
+                              fontWeight: FontWeight.w500,
                             ),
                           ),
-                        ),
-                        if (_error != null) ...[
+                          const SizedBox(height: 34),
+                          TextField(
+                            controller: _email,
+                            keyboardType: TextInputType.emailAddress,
+                            autofillHints: const [AutofillHints.email],
+                            decoration: const InputDecoration(
+                              labelText: 'Email address',
+                              prefixIcon: Icon(Icons.alternate_email_rounded),
+                            ),
+                          ),
                           const SizedBox(height: 14),
-                          Container(
-                            padding: const EdgeInsets.all(13),
-                            decoration: BoxDecoration(
-                              color: scheme.errorContainer,
-                              borderRadius: BorderRadius.circular(14),
-                            ),
-                            child: Row(
-                              children: [
-                                Icon(Icons.error_outline_rounded,
-                                    size: 20, color: scheme.error),
-                                const SizedBox(width: 9),
-                                Expanded(
-                                  child: Text(_error!,
-                                      style: TextStyle(color: scheme.onErrorContainer)),
-                                ),
-                              ],
+                          TextField(
+                            controller: _password,
+                            obscureText: _obscure,
+                            autofillHints: const [AutofillHints.password],
+                            onSubmitted: (_) => _loading ? null : _signIn(),
+                            decoration: InputDecoration(
+                              labelText: 'Password',
+                              prefixIcon: const Icon(Icons.lock_outline_rounded),
+                              suffixIcon: IconButton(
+                                tooltip: _obscure ? 'Show password' : 'Hide password',
+                                onPressed: () => setState(() => _obscure = !_obscure),
+                                icon: Icon(_obscure
+                                    ? Icons.visibility_outlined
+                                    : Icons.visibility_off_outlined),
+                              ),
                             ),
                           ),
-                        ],
-                        const SizedBox(height: 24),
-                        ElevatedButton(
-                          onPressed: _loading ? null : _signIn,
-                          child: _loading
-                              ? const SizedBox(
-                                  width: 22,
-                                  height: 22,
-                                  child: CircularProgressIndicator(
-                                      strokeWidth: 2.5, color: Colors.white),
-                                )
-                              : const Row(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Text('Sign in'),
-                                    SizedBox(width: 8),
-                                    Icon(Icons.arrow_forward_rounded, size: 19),
-                                  ],
-                                ),
-                        ),
-                        const SizedBox(height: 18),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Text('New to Hangout?',
-                                style: TextStyle(color: scheme.onSurfaceVariant)),
-                            TextButton(
-                              onPressed: () => Navigator.of(context).push(
-                                MaterialPageRoute(builder: (_) => const RegisterScreen()),
+                          if (_error != null) ...[
+                            const SizedBox(height: 14),
+                            Container(
+                              padding: const EdgeInsets.all(13),
+                              decoration: BoxDecoration(
+                                color: scheme.errorContainer,
+                                borderRadius: BorderRadius.circular(14),
                               ),
-                              child: const Text('Create account'),
+                              child: Row(
+                                children: [
+                                  Icon(Icons.error_outline_rounded,
+                                      size: 20, color: scheme.error),
+                                  const SizedBox(width: 9),
+                                  Expanded(
+                                    child: Text(_error!,
+                                        style: TextStyle(color: scheme.onErrorContainer)),
+                                  ),
+                                ],
+                              ),
                             ),
                           ],
-                        ),
-                      ],
+                          const SizedBox(height: 26),
+                          GradientButton(
+                            label: 'Sign in',
+                            icon: Icons.arrow_forward_rounded,
+                            loading: _loading,
+                            onPressed: _loading ? null : _signIn,
+                          ),
+                          const SizedBox(height: 18),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Text('New to Hangout?',
+                                  style: TextStyle(
+                                    color: dark ? Colors.white60 : AppColors.sageGray,
+                                  )),
+                              TextButton(
+                                onPressed: () => Navigator.of(context).push(
+                                  MaterialPageRoute(builder: (_) => const RegisterScreen()),
+                                ),
+                                child: const Text('Create account'),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

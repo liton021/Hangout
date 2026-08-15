@@ -3,7 +3,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../providers/providers.dart';
+import '../../theme/app_theme.dart';
 import '../../widgets/brand_logo.dart';
+import '../../widgets/gradient_button.dart';
 
 class RegisterScreen extends ConsumerStatefulWidget {
   const RegisterScreen({super.key});
@@ -60,91 +62,101 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final dark = Theme.of(context).brightness == Brightness.dark;
     return Scaffold(
-      appBar: AppBar(),
-      body: SafeArea(
-        top: false,
-        child: Center(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.fromLTRB(24, 16, 24, 32),
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 420),
-              child: AutofillGroup(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    const Align(
-                      alignment: Alignment.centerLeft,
-                      child: BrandLogo(size: 52),
-                    ),
-                    const SizedBox(height: 28),
-                    Text('Create your account',
-                        style: Theme.of(context).textTheme.headlineSmall),
-                    const SizedBox(height: 8),
-                    Text('A few details and you’re ready to Hangout.',
-                        style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 16)),
-                    const SizedBox(height: 30),
-                    TextField(
-                      controller: _name,
-                      textCapitalization: TextCapitalization.words,
-                      autofillHints: const [AutofillHints.name],
-                      decoration: const InputDecoration(
-                        labelText: 'Full name',
-                        prefixIcon: Icon(Icons.person_outline_rounded),
+      appBar: AppBar(
+        backgroundColor: dark ? AppColors.darkCanvas : AppColors.glassMint,
+      ),
+      body: Container(
+        decoration: BoxDecoration(
+          gradient:
+              dark ? AppColors.darkCanvasGradient : AppColors.canvasGradient,
+        ),
+        child: SafeArea(
+          top: false,
+          child: Center(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.fromLTRB(24, 16, 24, 32),
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 420),
+                child: AutofillGroup(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      const Align(
+                        alignment: Alignment.centerLeft,
+                        child: BrandLogo(size: 52, showShadow: true),
                       ),
-                    ),
-                    const SizedBox(height: 14),
-                    TextField(
-                      controller: _email,
-                      keyboardType: TextInputType.emailAddress,
-                      autofillHints: const [AutofillHints.email],
-                      decoration: const InputDecoration(
-                        labelText: 'Email address',
-                        prefixIcon: Icon(Icons.alternate_email_rounded),
-                      ),
-                    ),
-                    const SizedBox(height: 14),
-                    TextField(
-                      controller: _password,
-                      obscureText: _obscure,
-                      autofillHints: const [AutofillHints.newPassword],
-                      onSubmitted: (_) => _loading ? null : _signUp(),
-                      decoration: InputDecoration(
-                        labelText: 'Password',
-                        helperText: 'Use at least 6 characters',
-                        prefixIcon: const Icon(Icons.lock_outline_rounded),
-                        suffixIcon: IconButton(
-                          onPressed: () => setState(() => _obscure = !_obscure),
-                          icon: Icon(_obscure
-                              ? Icons.visibility_outlined
-                              : Icons.visibility_off_outlined),
+                      const SizedBox(height: 28),
+                      Text('Create your account',
+                          style: Theme.of(context).textTheme.headlineSmall),
+                      const SizedBox(height: 8),
+                      Text(
+                        'A few details and you’re ready to Hangout.',
+                        style: TextStyle(
+                          color: dark ? Colors.white60 : AppColors.sageGray,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w500,
                         ),
                       ),
-                    ),
-                    if (_error != null) ...[
+                      const SizedBox(height: 30),
+                      TextField(
+                        controller: _name,
+                        textCapitalization: TextCapitalization.words,
+                        autofillHints: const [AutofillHints.name],
+                        decoration: const InputDecoration(
+                          labelText: 'Full name',
+                          prefixIcon: Icon(Icons.person_outline_rounded),
+                        ),
+                      ),
                       const SizedBox(height: 14),
-                      Container(
-                        padding: const EdgeInsets.all(13),
-                        decoration: BoxDecoration(
-                          color: scheme.errorContainer,
-                          borderRadius: BorderRadius.circular(14),
+                      TextField(
+                        controller: _email,
+                        keyboardType: TextInputType.emailAddress,
+                        autofillHints: const [AutofillHints.email],
+                        decoration: const InputDecoration(
+                          labelText: 'Email address',
+                          prefixIcon: Icon(Icons.alternate_email_rounded),
                         ),
-                        child: Text(_error!, style: TextStyle(color: scheme.onErrorContainer)),
+                      ),
+                      const SizedBox(height: 14),
+                      TextField(
+                        controller: _password,
+                        obscureText: _obscure,
+                        autofillHints: const [AutofillHints.newPassword],
+                        onSubmitted: (_) => _loading ? null : _signUp(),
+                        decoration: InputDecoration(
+                          labelText: 'Password',
+                          helperText: 'Use at least 6 characters',
+                          prefixIcon: const Icon(Icons.lock_outline_rounded),
+                          suffixIcon: IconButton(
+                            onPressed: () => setState(() => _obscure = !_obscure),
+                            icon: Icon(_obscure
+                                ? Icons.visibility_outlined
+                                : Icons.visibility_off_outlined),
+                          ),
+                        ),
+                      ),
+                      if (_error != null) ...[
+                        const SizedBox(height: 14),
+                        Container(
+                          padding: const EdgeInsets.all(13),
+                          decoration: BoxDecoration(
+                            color: scheme.errorContainer,
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                          child: Text(_error!,
+                              style: TextStyle(color: scheme.onErrorContainer)),
+                        ),
+                      ],
+                      const SizedBox(height: 26),
+                      GradientButton(
+                        label: 'Create account',
+                        loading: _loading,
+                        onPressed: _loading ? null : _signUp,
                       ),
                     ],
-                    const SizedBox(height: 24),
-                    ElevatedButton(
-                      onPressed: _loading ? null : _signUp,
-                      child: _loading
-                          ? const SizedBox(
-                              width: 22,
-                              height: 22,
-                              child: CircularProgressIndicator(
-                                  color: Colors.white, strokeWidth: 2.5),
-                            )
-                          : const Text('Create account'),
-                    ),
-                  ],
+                  ),
                 ),
               ),
             ),

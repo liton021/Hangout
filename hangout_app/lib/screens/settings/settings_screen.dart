@@ -28,19 +28,23 @@ class SettingsScreen extends ConsumerWidget {
                   child: Row(
                     children: [
                       if (profile != null)
-                        UserAvatar(user: profile, radius: 32)
+                        UserAvatar(user: profile, radius: 32, showPresence: true)
                       else
-                        CircleAvatar(
-                          radius: 32,
-                          backgroundColor:
-                              Theme.of(context).colorScheme.primaryContainer,
+                        Container(
+                          width: 64,
+                          height: 64,
+                          decoration: const BoxDecoration(
+                            gradient: AppColors.brandGradient,
+                            shape: BoxShape.circle,
+                          ),
+                          alignment: Alignment.center,
                           child: Text(
                             fallbackName.isEmpty
                                 ? '?'
                                 : fallbackName[0].toUpperCase(),
-                            style: TextStyle(
-                              color: Theme.of(context).colorScheme.primary,
-                              fontSize: 22,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 24,
                               fontWeight: FontWeight.w800,
                             ),
                           ),
@@ -58,22 +62,17 @@ class SettingsScreen extends ConsumerWidget {
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: TextStyle(
-                                color: Theme.of(context)
-                                    .colorScheme
-                                    .onSurfaceVariant,
+                                color: Theme.of(context).brightness ==
+                                        Brightness.dark
+                                    ? Colors.white60
+                                    : AppColors.sageGray,
                               ),
                             ),
                           ],
                         ),
                       ),
-                      Container(
-                        width: 10,
-                        height: 10,
-                        decoration: const BoxDecoration(
-                          color: AppColors.success,
-                          shape: BoxShape.circle,
-                        ),
-                      ),
+                      const Icon(Icons.chevron_right_rounded,
+                          color: AppColors.sageGray),
                     ],
                   ),
                 ),

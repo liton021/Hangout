@@ -79,20 +79,32 @@ class _IncomingCallScreenState extends ConsumerState<IncomingCallScreen> {
           child: Column(
             children: [
               const Spacer(),
-              CircleAvatar(
-                radius: 52,
-                backgroundColor: Colors.white24,
+              // White avatar disc with the call glyph (report §4: call screen).
+              Container(
+                width: 116,
+                height: 116,
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(.16),
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: Colors.white.withOpacity(.35),
+                    width: 2,
+                  ),
+                ),
                 child: Icon(
-                  isVideo ? Icons.videocam : Icons.call,
-                  size: 48,
+                  isVideo ? Icons.videocam_rounded : Icons.call_rounded,
+                  size: 50,
                   color: Colors.white,
                 ),
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 26),
               Text(
                 widget.call.callerName,
                 style: const TextStyle(
-                    fontSize: 28, fontWeight: FontWeight.w800, color: Colors.white),
+                    fontSize: 28,
+                    fontWeight: FontWeight.w800,
+                    color: Colors.white,
+                    letterSpacing: -0.3),
               ),
               const SizedBox(height: 8),
               Text(
@@ -107,7 +119,7 @@ class _IncomingCallScreenState extends ConsumerState<IncomingCallScreen> {
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Material(
-                        color: const Color(0xFFFF4757),
+                        color: AppColors.danger,
                         shape: const CircleBorder(),
                         child: InkWell(
                           customBorder: const CircleBorder(),
@@ -120,16 +132,19 @@ class _IncomingCallScreenState extends ConsumerState<IncomingCallScreen> {
                           ),
                         ),
                       ),
-                      const SizedBox(height: 8),
+                      const SizedBox(height: 9),
                       const Text('Decline',
-                          style: TextStyle(color: Colors.white70)),
+                          style: TextStyle(
+                              color: Colors.white70,
+                              fontWeight: FontWeight.w600)),
                     ],
                   ),
                   Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
+                      // Accept = white disc + teal icon (flat & colorful).
                       Material(
-                        color: const Color(0xFF2ED573),
+                        color: Colors.white,
                         shape: const CircleBorder(),
                         child: InkWell(
                           customBorder: const CircleBorder(),
@@ -139,15 +154,17 @@ class _IncomingCallScreenState extends ConsumerState<IncomingCallScreen> {
                             height: 72,
                             child: Icon(
                               isVideo ? Icons.videocam : Icons.call,
-                              color: Colors.white,
+                              color: AppColors.teal,
                               size: 32,
                             ),
                           ),
                         ),
                       ),
-                      const SizedBox(height: 8),
+                      const SizedBox(height: 9),
                       const Text('Accept',
-                          style: TextStyle(color: Colors.white70)),
+                          style: TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w700)),
                     ],
                   ),
                 ],

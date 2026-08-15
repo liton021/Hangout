@@ -1,6 +1,11 @@
 import 'package:flutter/material.dart';
 
-/// A circular call-control button (mic, camera, end, effects…).
+import '../theme/app_theme.dart';
+
+/// A circular call-control button (mute, speaker, flip, end…).
+///
+/// Report §6.4: white circle buttons; active controls get the teal→aqua
+/// gradient, inactive ones fade out, the end call button is red.
 class CallActionButton extends StatelessWidget {
   const CallActionButton({
     super.key,
@@ -19,30 +24,48 @@ class CallActionButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final Color background;
+    final Color iconColor;
+    if (danger) {
+      background = AppColors.danger;
+      iconColor = Colors.white;
+    } else if (active) {
+      background = AppColors.brandGradient.colors.first;
+      iconColor = Colors.white;
+    } else {
+      background = Colors.white.withOpacity(.18);
+      iconColor = Colors.white54;
+    }
+
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
         AnimatedContainer(
-          duration: const Duration(milliseconds: 180),
+          duration: const Duration(milliseconds: 200),
+          curve: Curves.easeOut,
+          width: 60,
+          height: 60,
           decoration: BoxDecoration(
+            gradient: (danger || !active) ? null : AppColors.brandGradient,
             color: danger
-                ? const Color(0xFFE84D5B)
-                : (active
-                    ? Colors.white.withOpacity(.18)
-                    : Colors.black.withOpacity(.25)),
+                ? AppColors.danger
+                : (active ? null : Colors.white.withOpacity(.18)),
             shape: BoxShape.circle,
             border: Border.all(
-              color: danger ? Colors.transparent : Colors.white.withOpacity(.10),
+              color: danger
+                  ? Colors.transparent
+                  : Colors.white.withOpacity(active ? .45 : .18),
+              width: 1.2,
             ),
-            boxShadow: danger
-                ? const [
-                    BoxShadow(
-                      color: Color(0x55E84D5B),
-                      blurRadius: 18,
-                      offset: Offset(0, 7),
-                    ),
-                  ]
-                : null,
+            boxShadow: [
+              BoxShadow(
+                color: danger
+                    ? AppColors.danger.withOpacity(.45)
+                    : Colors.black.withOpacity(.22),
+                blurRadius: danger ? 18 : 10,
+                offset: const Offset(0, 6),
+              ),
+            ],
           ),
           child: Material(
             color: Colors.transparent,
@@ -51,24 +74,22 @@ class CallActionButton extends StatelessWidget {
               customBorder: const CircleBorder(),
               onTap: onPressed,
               child: SizedBox(
-                width: 58,
-                height: 58,
-                child: Icon(
-                  icon,
-                  color: danger
-                      ? Colors.white
-                      : (active ? Colors.white : Colors.white54),
-                  size: 25,
-                ),
+                width: 60,
+                height: 60,
+                child: Icon(icon, color: iconColor, size: 25),
               ),
             ),
           ),
         ),
         if (label != null) ...[
-          const SizedBox(height: 6),
+          const SizedBox(height: 7),
           Text(
             label!,
-            style: const TextStyle(color: Colors.white70, fontSize: 12),
+            style: const TextStyle(
+              color: Colors.white70,
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+            ),
           ),
         ],
       ],

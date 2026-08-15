@@ -20,7 +20,7 @@ class BrandLogo extends StatelessWidget {
         boxShadow: showShadow
             ? [
                 BoxShadow(
-                  color: AppColors.primary.withOpacity(.28),
+                  color: AppColors.teal.withOpacity(.30),
                   blurRadius: size * .45,
                   offset: Offset(0, size * .16),
                 ),
@@ -55,7 +55,7 @@ class _LogoPainter extends CustomPainter {
       ..close();
     canvas.drawPath(tail, paint);
 
-    final cutout = Paint()..color = AppColors.primary;
+    final cutout = Paint()..color = AppColors.deepLagoon;
     canvas.drawCircle(
       Offset(size.width * .40, size.height * .455),
       unit * .038,

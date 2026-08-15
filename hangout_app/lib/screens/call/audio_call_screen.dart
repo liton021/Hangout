@@ -113,28 +113,89 @@ class _AudioCallScreenState extends ConsumerState<AudioCallScreen> {
         child: SafeArea(
           child: Column(
             children: [
+              const SizedBox(height: 14),
+              // Free built-in noise-filter status pill.
+              AnimatedContainer(
+                duration: const Duration(milliseconds: 250),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                decoration: BoxDecoration(
+                  color: _noiseSuppression
+                      ? Colors.white.withOpacity(.14)
+                      : Colors.white.withOpacity(.07),
+                  borderRadius: BorderRadius.circular(999),
+                  border: Border.all(
+                    color: _noiseSuppression
+                        ? AppColors.softAqua.withOpacity(.45)
+                        : Colors.transparent,
+                  ),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.hearing_rounded,
+                      size: 16,
+                      color: _noiseSuppression
+                          ? AppColors.softAqua
+                          : Colors.white38,
+                    ),
+                    const SizedBox(width: 7),
+                    Text(
+                      _noiseSuppression
+                          ? 'Noise filtering on'
+                          : 'Noise filtering off',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        color: _noiseSuppression
+                            ? AppColors.softAqua
+                            : Colors.white38,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
               const Spacer(),
-              CircleAvatar(
-                radius: 52,
-                backgroundColor: Colors.white24,
+              // Teal→aqua gradient avatar (report §6.4).
+              Container(
+                width: 116,
+                height: 116,
+                decoration: const BoxDecoration(
+                  gradient: AppColors.brandGradient,
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                      color: Color(0x4018BFAC),
+                      blurRadius: 34,
+                      offset: Offset(0, 12),
+                    ),
+                  ],
+                ),
+                alignment: Alignment.center,
                 child: Text(
                   _peerInitial,
                   style: const TextStyle(
-                      fontSize: 44,
-                      fontWeight: FontWeight.w800,
-                      color: Colors.white),
+                    fontSize: 46,
+                    fontWeight: FontWeight.w800,
+                    color: Colors.white,
+                    letterSpacing: 1,
+                  ),
                 ),
               ),
               const SizedBox(height: 24),
               Text(
                 _peerName,
                 style: const TextStyle(
-                    fontSize: 26, fontWeight: FontWeight.w800, color: Colors.white),
+                    fontSize: 26,
+                    fontWeight: FontWeight.w800,
+                    color: Colors.white,
+                    letterSpacing: -0.3),
               ),
               const SizedBox(height: 8),
               Text(
                 _ringing ? 'Ringing…' : _elapsed,
-                style: const TextStyle(color: Colors.white70, fontSize: 16),
+                style: const TextStyle(color: Colors.white60, fontSize: 15.5),
               ),
               const Spacer(),
               if (_error != null)
@@ -165,9 +226,7 @@ class _AudioCallScreenState extends ConsumerState<AudioCallScreen> {
                     },
                   ),
                   CallActionButton(
-                    icon: _speakerOn
-                        ? Icons.volume_up
-                        : Icons.volume_mute,
+                    icon: _speakerOn ? Icons.volume_up : Icons.volume_mute,
                     active: _speakerOn,
                     label: 'Speaker',
                     onPressed: () async {

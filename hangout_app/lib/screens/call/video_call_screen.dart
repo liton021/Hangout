@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../models/call_data.dart';
 import '../../providers/call_controller.dart';
 import '../../services/call_service.dart';
+import '../../theme/app_theme.dart';
 import '../../widgets/call_action_button.dart';
 
 class VideoCallScreen extends ConsumerStatefulWidget {
@@ -137,13 +138,13 @@ class _VideoCallScreenState extends ConsumerState<VideoCallScreen> {
           // Local (picture-in-picture)
           if (_localController != null)
             Positioned(
-              top: MediaQuery.of(context).padding.top + 12,
-              right: 12,
+              top: MediaQuery.of(context).padding.top + 14,
+              right: 14,
               child: _localTile(),
             ),
           // Status overlay
           Positioned(
-            top: MediaQuery.of(context).padding.top + 12,
+            top: MediaQuery.of(context).padding.top + 18,
             left: 16,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -153,7 +154,8 @@ class _VideoCallScreenState extends ConsumerState<VideoCallScreen> {
                   style: const TextStyle(
                       color: Colors.white,
                       fontSize: 20,
-                      fontWeight: FontWeight.w700),
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: -0.2),
                 ),
                 const SizedBox(height: 4),
                 Text(
@@ -234,26 +236,51 @@ class _VideoCallScreenState extends ConsumerState<VideoCallScreen> {
     if (uid != null && _remoteControllers.containsKey(uid)) {
       return AgoraVideoView(controller: _remoteControllers[uid]!);
     }
-    return const Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          CircularProgressIndicator(color: Colors.white70),
-          SizedBox(height: 16),
-          Text('Waiting for the other person…',
-              style: TextStyle(color: Colors.white70)),
-        ],
+    return Center(
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 16),
+        decoration: BoxDecoration(
+          color: Colors.black.withOpacity(.35),
+          borderRadius: BorderRadius.circular(999),
+        ),
+        child: const Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            SizedBox(
+              width: 18,
+              height: 18,
+              child: CircularProgressIndicator(
+                  color: Colors.white70, strokeWidth: 2.4),
+            ),
+            SizedBox(width: 12),
+            Text('Waiting for the other person…',
+                style: TextStyle(color: Colors.white70)),
+          ],
+        ),
       ),
     );
   }
 
   Widget _localTile() {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(14),
-      child: SizedBox(
-        width: 110,
-        height: 160,
-        child: AgoraVideoView(controller: _localController!),
+    return Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.white.withOpacity(.35), width: 1.5),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x66000000),
+            blurRadius: 16,
+            offset: Offset(0, 6),
+          ),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(14),
+        child: SizedBox(
+          width: 110,
+          height: 160,
+          child: AgoraVideoView(controller: _localController!),
+        ),
       ),
     );
   }
