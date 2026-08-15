@@ -505,7 +505,7 @@ class _ComposerState extends State<_Composer> {
                 IconButton(
                   tooltip: 'Emoji',
                   onPressed: () => setState(() => _emojiOpen = !_emojiOpen),
-                  icon: const Icon(Icons.emoji_emotions_outlined_rounded,
+                  icon: const Icon(Icons.emoji_emotions_rounded,
                       size: 24),
                   color: _emojiOpen ? AppColors.teal : AppColors.sageGray,
                 ),
