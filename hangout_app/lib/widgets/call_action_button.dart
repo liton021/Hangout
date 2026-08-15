@@ -22,21 +22,44 @@ class CallActionButton extends StatelessWidget {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Material(
-          color: danger
-              ? const Color(0xFFFF4757)
-              : (active ? Colors.white.withOpacity(0.18) : Colors.white.withOpacity(0.07)),
-          shape: const CircleBorder(),
-          child: InkWell(
-            customBorder: const CircleBorder(),
-            onTap: onPressed,
-            child: SizedBox(
-              width: 60,
-              height: 60,
-              child: Icon(
-                icon,
-                color: danger ? Colors.white : (active ? Colors.white : Colors.white54),
-                size: 26,
+        AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          decoration: BoxDecoration(
+            color: danger
+                ? const Color(0xFFE84D5B)
+                : (active
+                    ? Colors.white.withOpacity(.18)
+                    : Colors.black.withOpacity(.25)),
+            shape: BoxShape.circle,
+            border: Border.all(
+              color: danger ? Colors.transparent : Colors.white.withOpacity(.10),
+            ),
+            boxShadow: danger
+                ? const [
+                    BoxShadow(
+                      color: Color(0x55E84D5B),
+                      blurRadius: 18,
+                      offset: Offset(0, 7),
+                    ),
+                  ]
+                : null,
+          ),
+          child: Material(
+            color: Colors.transparent,
+            shape: const CircleBorder(),
+            child: InkWell(
+              customBorder: const CircleBorder(),
+              onTap: onPressed,
+              child: SizedBox(
+                width: 58,
+                height: 58,
+                child: Icon(
+                  icon,
+                  color: danger
+                      ? Colors.white
+                      : (active ? Colors.white : Colors.white54),
+                  size: 25,
+                ),
               ),
             ),
           ),

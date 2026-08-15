@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../providers/providers.dart';
-import '../../theme/app_theme.dart';
+import '../../widgets/brand_logo.dart';
 
 class RegisterScreen extends ConsumerStatefulWidget {
   const RegisterScreen({super.key});
@@ -17,6 +17,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   final _email = TextEditingController();
   final _password = TextEditingController();
   bool _loading = false;
+  bool _obscure = true;
   String? _error;
 
   @override
@@ -44,16 +45,12 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
       final user = await ref
           .read(authServiceProvider)
           .registerWithEmail(_name.text, _email.text, _password.text);
-      if (user != null) {
-        await ref.read(userServiceProvider).upsert(user);
-      }
+      if (user != null) await ref.read(userServiceProvider).upsert(user);
     } on FirebaseAuthException catch (e) {
-      setState(() {
-        _error = e.code == 'email-already-in-use'
-            ? 'That email is already registered.'
-            : (e.message ?? 'Sign up failed.');
-      });
-    } catch (e) {
+      setState(() => _error = e.code == 'email-already-in-use'
+          ? 'That email is already registered.'
+          : (e.message ?? 'Sign up failed.'));
+    } catch (_) {
       setState(() => _error = 'Something went wrong. Try again.');
     } finally {
       if (mounted) setState(() => _loading = false);
@@ -62,75 +59,93 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     return Scaffold(
       appBar: AppBar(),
       body: SafeArea(
+        top: false,
         child: Center(
           child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 24),
+            padding: const EdgeInsets.fromLTRB(24, 16, 24, 32),
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 420),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  const Text(
-                    'Create your account',
-                    style:
-                        TextStyle(fontSize: 26, fontWeight: FontWeight.w800),
-                  ),
-                  const SizedBox(height: 4),
-                  const Text(
-                    'Join Hangout and stay connected',
-                    style: TextStyle(color: Colors.grey),
-                  ),
-                  const SizedBox(height: 32),
-                  TextField(
-                    controller: _name,
-                    decoration: const InputDecoration(
-                      labelText: 'Full name',
-                      prefixIcon: Icon(Icons.person_outline),
+              child: AutofillGroup(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    const Align(
+                      alignment: Alignment.centerLeft,
+                      child: BrandLogo(size: 52),
                     ),
-                  ),
-                  const SizedBox(height: 16),
-                  TextField(
-                    controller: _email,
-                    keyboardType: TextInputType.emailAddress,
-                    decoration: const InputDecoration(
-                      labelText: 'Email',
-                      prefixIcon: Icon(Icons.mail_outline),
+                    const SizedBox(height: 28),
+                    Text('Create your account',
+                        style: Theme.of(context).textTheme.headlineSmall),
+                    const SizedBox(height: 8),
+                    Text('A few details and you’re ready to Hangout.',
+                        style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 16)),
+                    const SizedBox(height: 30),
+                    TextField(
+                      controller: _name,
+                      textCapitalization: TextCapitalization.words,
+                      autofillHints: const [AutofillHints.name],
+                      decoration: const InputDecoration(
+                        labelText: 'Full name',
+                        prefixIcon: Icon(Icons.person_outline_rounded),
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 16),
-                  TextField(
-                    controller: _password,
-                    obscureText: true,
-                    onSubmitted: (_) => _loading ? null : _signUp(),
-                    decoration: const InputDecoration(
-                      labelText: 'Password (min 6 characters)',
-                      prefixIcon: Icon(Icons.lock_outline),
+                    const SizedBox(height: 14),
+                    TextField(
+                      controller: _email,
+                      keyboardType: TextInputType.emailAddress,
+                      autofillHints: const [AutofillHints.email],
+                      decoration: const InputDecoration(
+                        labelText: 'Email address',
+                        prefixIcon: Icon(Icons.alternate_email_rounded),
+                      ),
                     ),
-                  ),
-                  if (_error != null) ...[
-                    const SizedBox(height: 16),
-                    Text(
-                      _error!,
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(color: AppColors.danger),
+                    const SizedBox(height: 14),
+                    TextField(
+                      controller: _password,
+                      obscureText: _obscure,
+                      autofillHints: const [AutofillHints.newPassword],
+                      onSubmitted: (_) => _loading ? null : _signUp(),
+                      decoration: InputDecoration(
+                        labelText: 'Password',
+                        helperText: 'Use at least 6 characters',
+                        prefixIcon: const Icon(Icons.lock_outline_rounded),
+                        suffixIcon: IconButton(
+                          onPressed: () => setState(() => _obscure = !_obscure),
+                          icon: Icon(_obscure
+                              ? Icons.visibility_outlined
+                              : Icons.visibility_off_outlined),
+                        ),
+                      ),
+                    ),
+                    if (_error != null) ...[
+                      const SizedBox(height: 14),
+                      Container(
+                        padding: const EdgeInsets.all(13),
+                        decoration: BoxDecoration(
+                          color: scheme.errorContainer,
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        child: Text(_error!, style: TextStyle(color: scheme.onErrorContainer)),
+                      ),
+                    ],
+                    const SizedBox(height: 24),
+                    ElevatedButton(
+                      onPressed: _loading ? null : _signUp,
+                      child: _loading
+                          ? const SizedBox(
+                              width: 22,
+                              height: 22,
+                              child: CircularProgressIndicator(
+                                  color: Colors.white, strokeWidth: 2.5),
+                            )
+                          : const Text('Create account'),
                     ),
                   ],
-                  const SizedBox(height: 24),
-                  ElevatedButton(
-                    onPressed: _loading ? null : _signUp,
-                    child: _loading
-                        ? const SizedBox(
-                            width: 22,
-                            height: 22,
-                            child: CircularProgressIndicator(
-                                color: Colors.white, strokeWidth: 2.5),
-                          )
-                        : const Text('Sign up'),
-                  ),
-                ],
+                ),
               ),
             ),
           ),

@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../providers/providers.dart';
 import '../../theme/app_theme.dart';
+import '../../widgets/brand_logo.dart';
 import 'register_screen.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
@@ -17,6 +18,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _email = TextEditingController();
   final _password = TextEditingController();
   bool _loading = false;
+  bool _obscure = true;
   String? _error;
 
   @override
@@ -32,12 +34,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       _error = null;
     });
     try {
-      await ref
-          .read(authServiceProvider)
-          .signInWithEmail(_email.text, _password.text);
+      await ref.read(authServiceProvider).signInWithEmail(_email.text, _password.text);
     } on FirebaseAuthException catch (e) {
       setState(() => _error = _friendly(e));
-    } catch (e) {
+    } catch (_) {
       setState(() => _error = 'Something went wrong. Try again.');
     } finally {
       if (mounted) setState(() => _loading = false);
@@ -61,86 +61,135 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     return Scaffold(
-      body: SafeArea(
-        child: Center(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 24),
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 420),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  const Icon(Icons.forum_rounded,
-                      size: 72, color: AppColors.primary),
-                  const SizedBox(height: 12),
-                  const Text(
-                    'Welcome back',
-                    textAlign: TextAlign.center,
-                    style:
-                        TextStyle(fontSize: 28, fontWeight: FontWeight.w800),
-                  ),
-                  const SizedBox(height: 4),
-                  const Text(
-                    'Sign in to start chatting and calling',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(color: Colors.grey),
-                  ),
-                  const SizedBox(height: 32),
-                  TextField(
-                    controller: _email,
-                    keyboardType: TextInputType.emailAddress,
-                    decoration: const InputDecoration(
-                      labelText: 'Email',
-                      prefixIcon: Icon(Icons.mail_outline),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  TextField(
-                    controller: _password,
-                    obscureText: true,
-                    onSubmitted: (_) => _loading ? null : _signIn(),
-                    decoration: const InputDecoration(
-                      labelText: 'Password',
-                      prefixIcon: Icon(Icons.lock_outline),
-                    ),
-                  ),
-                  if (_error != null) ...[
-                    const SizedBox(height: 16),
-                    Text(
-                      _error!,
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(color: AppColors.danger),
-                    ),
-                  ],
-                  const SizedBox(height: 24),
-                  ElevatedButton(
-                    onPressed: _loading ? null : _signIn,
-                    child: _loading
-                        ? const SizedBox(
-                            width: 22,
-                            height: 22,
-                            child: CircularProgressIndicator(
-                                color: Colors.white, strokeWidth: 2.5),
-                          )
-                        : const Text('Sign in'),
-                  ),
-                  const SizedBox(height: 12),
-                  TextButton(
-                    onPressed: () {
-                      Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (_) => const RegisterScreen(),
-                        ),
-                      );
-                    },
-                    child: const Text("Don't have an account? Sign up"),
-                  ),
-                ],
+      body: Stack(
+        children: [
+          Positioned(
+            top: -120,
+            right: -110,
+            child: Container(
+              width: 300,
+              height: 300,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: scheme.primary.withOpacity(.09),
               ),
             ),
           ),
-        ),
+          SafeArea(
+            child: Center(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 30),
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 420),
+                  child: AutofillGroup(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        const Align(
+                          alignment: Alignment.centerLeft,
+                          child: BrandLogo(size: 62, showShadow: true),
+                        ),
+                        const SizedBox(height: 34),
+                        Text('Welcome back',
+                            style: Theme.of(context).textTheme.headlineLarge),
+                        const SizedBox(height: 9),
+                        Text('Sign in and pick up where you left off.',
+                            style: TextStyle(
+                              color: scheme.onSurfaceVariant,
+                              fontSize: 16,
+                            )),
+                        const SizedBox(height: 34),
+                        TextField(
+                          controller: _email,
+                          keyboardType: TextInputType.emailAddress,
+                          autofillHints: const [AutofillHints.email],
+                          decoration: const InputDecoration(
+                            labelText: 'Email address',
+                            prefixIcon: Icon(Icons.alternate_email_rounded),
+                          ),
+                        ),
+                        const SizedBox(height: 14),
+                        TextField(
+                          controller: _password,
+                          obscureText: _obscure,
+                          autofillHints: const [AutofillHints.password],
+                          onSubmitted: (_) => _loading ? null : _signIn(),
+                          decoration: InputDecoration(
+                            labelText: 'Password',
+                            prefixIcon: const Icon(Icons.lock_outline_rounded),
+                            suffixIcon: IconButton(
+                              tooltip: _obscure ? 'Show password' : 'Hide password',
+                              onPressed: () => setState(() => _obscure = !_obscure),
+                              icon: Icon(_obscure
+                                  ? Icons.visibility_outlined
+                                  : Icons.visibility_off_outlined),
+                            ),
+                          ),
+                        ),
+                        if (_error != null) ...[
+                          const SizedBox(height: 14),
+                          Container(
+                            padding: const EdgeInsets.all(13),
+                            decoration: BoxDecoration(
+                              color: scheme.errorContainer,
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                            child: Row(
+                              children: [
+                                Icon(Icons.error_outline_rounded,
+                                    size: 20, color: scheme.error),
+                                const SizedBox(width: 9),
+                                Expanded(
+                                  child: Text(_error!,
+                                      style: TextStyle(color: scheme.onErrorContainer)),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                        const SizedBox(height: 24),
+                        ElevatedButton(
+                          onPressed: _loading ? null : _signIn,
+                          child: _loading
+                              ? const SizedBox(
+                                  width: 22,
+                                  height: 22,
+                                  child: CircularProgressIndicator(
+                                      strokeWidth: 2.5, color: Colors.white),
+                                )
+                              : const Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Text('Sign in'),
+                                    SizedBox(width: 8),
+                                    Icon(Icons.arrow_forward_rounded, size: 19),
+                                  ],
+                                ),
+                        ),
+                        const SizedBox(height: 18),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text('New to Hangout?',
+                                style: TextStyle(color: scheme.onSurfaceVariant)),
+                            TextButton(
+                              onPressed: () => Navigator.of(context).push(
+                                MaterialPageRoute(builder: (_) => const RegisterScreen()),
+                              ),
+                              child: const Text('Create account'),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

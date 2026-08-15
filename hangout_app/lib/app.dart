@@ -35,6 +35,7 @@ class _HangoutAppState extends ConsumerState<HangoutApp> {
   @override
   Widget build(BuildContext context) {
     final auth = ref.watch(authStateProvider);
+    final themeMode = ref.watch(themeModeProvider);
 
     // Once signed in, start call signaling + register the device token.
     ref.listen(authStateProvider, (prev, next) async {
@@ -69,7 +70,7 @@ class _HangoutAppState extends ConsumerState<HangoutApp> {
       title: 'Hangout',
       theme: AppTheme.light(),
       darkTheme: AppTheme.dark(),
-      themeMode: ThemeMode.system,
+      themeMode: themeMode,
       home: auth.when(
         loading: () => const SplashScreen(),
         error: (_, __) => const SplashScreen(),

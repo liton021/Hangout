@@ -109,7 +109,7 @@ class _AudioCallScreenState extends ConsumerState<AudioCallScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       body: Container(
-        decoration: const BoxDecoration(gradient: AppColors.brandGradient),
+        decoration: const BoxDecoration(gradient: AppColors.callGradient),
         child: SafeArea(
           child: Column(
             children: [

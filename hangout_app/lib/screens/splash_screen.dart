@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../theme/app_theme.dart';
+import '../widgets/brand_logo.dart';
 
 class SplashScreen extends StatelessWidget {
   const SplashScreen({super.key});
@@ -8,39 +8,28 @@ class SplashScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Container(
-        decoration: const BoxDecoration(gradient: AppColors.brandGradient),
-        child: const Center(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(Icons.forum_rounded, size: 96, color: Colors.white),
-              SizedBox(height: 16),
-              Text(
-                'Hangout',
-                style: TextStyle(
-                  fontSize: 40,
-                  fontWeight: FontWeight.w800,
-                  color: Colors.white,
-                  letterSpacing: 1.2,
-                ),
+      body: Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const BrandLogo(size: 92, showShadow: true),
+            const SizedBox(height: 26),
+            Text('Hangout', style: Theme.of(context).textTheme.headlineLarge),
+            const SizedBox(height: 8),
+            Text(
+              'Closer, wherever you are.',
+              style: TextStyle(
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+                fontSize: 15,
               ),
-              SizedBox(height: 8),
-              Text(
-                'Chat. Call. Crystal clear.',
-                style: TextStyle(fontSize: 16, color: Colors.white70),
-              ),
-              SizedBox(height: 40),
-              SizedBox(
-                width: 28,
-                height: 28,
-                child: CircularProgressIndicator(
-                  color: Colors.white,
-                  strokeWidth: 3,
-                ),
-              ),
-            ],
-          ),
+            ),
+            const SizedBox(height: 42),
+            const SizedBox(
+              width: 24,
+              height: 24,
+              child: CircularProgressIndicator(strokeWidth: 2.5),
+            ),
+          ],
         ),
       ),
     );
