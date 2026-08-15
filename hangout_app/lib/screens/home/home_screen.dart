@@ -127,7 +127,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 }
 
 // ───────────────────────────────────────────────────────────────────────────
-// Bottom navigation — white rounded bar, identical on every tab (report §6.3)
+// Bottom navigation — capsule bar, identical on every tab (report §6.3).
+// Fully rounded corners; the selected tab shows a filled pale-mint circle
+// behind the icon only, with the label staying below it.
 // ───────────────────────────────────────────────────────────────────────────
 class _FloatingNavBar extends StatelessWidget {
   const _FloatingNavBar({required this.selectedIndex, required this.onSelected});
@@ -135,47 +137,113 @@ class _FloatingNavBar extends StatelessWidget {
   final int selectedIndex;
   final ValueChanged<int> onSelected;
 
+  static const _labels = ['Chats', 'Contacts', 'Calls', 'Settings'];
+  static const _icons = [
+    Icons.chat_bubble_outline_rounded,
+    Icons.people_outline_rounded,
+    Icons.call_outlined,
+    Icons.tune_rounded,
+  ];
+  static const _selectedIcons = [
+    Icons.chat_bubble_rounded,
+    Icons.people_rounded,
+    Icons.call_rounded,
+    Icons.tune_rounded,
+  ];
+
   @override
   Widget build(BuildContext context) {
     final dark = Theme.of(context).brightness == Brightness.dark;
+    final barRadius = 36.0; // 72px tall -> perfectly rounded capsule
+
     return Container(
       margin: const EdgeInsets.fromLTRB(12, 0, 12, 12),
       decoration: BoxDecoration(
         color: dark ? AppColors.darkSurface : Colors.white,
-        borderRadius: BorderRadius.circular(24),
+        borderRadius: BorderRadius.circular(barRadius),
         boxShadow: AppColors.floatingShadow,
         border: Border.all(
           color: dark ? Colors.white.withOpacity(.07) : Colors.white,
         ),
       ),
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(24),
-        child: NavigationBar(
-          selectedIndex: selectedIndex,
-          onDestinationSelected: onSelected,
-          destinations: const [
-            NavigationDestination(
-              icon: Icon(Icons.chat_bubble_outline_rounded),
-              selectedIcon: Icon(Icons.chat_bubble_rounded),
-              label: 'Chats',
-            ),
-            NavigationDestination(
-              icon: Icon(Icons.people_outline_rounded),
-              selectedIcon: Icon(Icons.people_rounded),
-              label: 'Contacts',
-            ),
-            NavigationDestination(
-              icon: Icon(Icons.call_outlined),
-              selectedIcon: Icon(Icons.call_rounded),
-              label: 'Calls',
-            ),
-            NavigationDestination(
-              icon: Icon(Icons.tune_rounded),
-              selectedIcon: Icon(Icons.tune_rounded),
-              label: 'Settings',
-            ),
-          ],
+        borderRadius: BorderRadius.circular(barRadius),
+        child: SizedBox(
+          height: 72,
+          child: Row(
+            children: [
+              for (var i = 0; i < _labels.length; i++)
+                Expanded(
+                  child: _NavItem(
+                    icon: _icons[i],
+                    selectedIcon: _selectedIcons[i],
+                    label: _labels[i],
+                    selected: selectedIndex == i,
+                    onTap: () => onSelected(i),
+                  ),
+                ),
+            ],
+          ),
         ),
+      ),
+    );
+  }
+}
+
+class _NavItem extends StatelessWidget {
+  const _NavItem({
+    required this.icon,
+    required this.selectedIcon,
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final IconData selectedIcon;
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    final idleColor = dark ? Colors.white54 : AppColors.sageGray;
+
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(20),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          AnimatedContainer(
+            duration: const Duration(milliseconds: 200),
+            curve: Curves.easeOut,
+            width: 46,
+            height: 46,
+            decoration: BoxDecoration(
+              color: selected ? AppColors.paleMint : Colors.transparent,
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              selected ? selectedIcon : icon,
+              size: 24,
+              color: selected ? AppColors.teal : idleColor,
+            ),
+          ),
+          const SizedBox(height: 2),
+          AnimatedDefaultTextStyle(
+            duration: const Duration(milliseconds: 200),
+            curve: Curves.easeOut,
+            style: TextStyle(
+              fontSize: 11,
+              height: 1,
+              fontWeight: selected ? FontWeight.w800 : FontWeight.w600,
+              color: selected ? AppColors.teal : idleColor,
+            ),
+            child: Text(label),
+          ),
+        ],
       ),
     );
   }
