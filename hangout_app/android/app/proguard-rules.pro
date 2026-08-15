@@ -15,6 +15,8 @@
 -dontwarn com.google.firebase.**
 -keep class com.google.android.gms.** { *; }
 -dontwarn com.google.android.gms.**
+-keep class com.google.android.play.core.** { *; }
+-dontwarn com.google.android.play.core.**
 
 # ---- Keep annotations used by reflection ----
 -keepattributes *Annotation*
