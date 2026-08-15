@@ -19,7 +19,7 @@ Two genuinely "free" paths exist, and the right one depends on how much infrastr
 | **Video filters** | ML Kit segmentation + custom shaders | Built in (beauty, virtual background) |
 | **Effort** | High | Low–medium |
 
-**Top recommendation:** for most builders, **ZEGOCLOUD (calls + built‑in noise suppression + beauty/virtual‑background filters + prebuilt modern call UI, 10,000 free minutes) + Firebase (messaging, auth, push — free Spark tier)** is the fastest route to exactly what was described.
+**Top recommendation (chosen):** **Agora RTC for calls** (`agora_rtc_engine`, free 10,000 min/month, built‑in AI Noise Suppression + beauty/virtual‑background filters) **+ Firebase for messaging/auth/push** (Firestore + FCM, free Spark tier). Full justification and the chat‑layer decision are in `AGORA_AND_CHAT_DECISION.md`.
 
 If "free" must mean *no vendor, ever*, the best stack is **`flutter_webrtc` + LiveKit (self‑hosted, Apache‑2.0) + DeepFilterNet‑3 / RNNoise (audio noise) + Google ML Kit (video background blur) + Supabase or Firebase (chat) + `flutter_chat_ui` (modern UI)**.
 
@@ -155,17 +155,17 @@ If you don't want to build the audio pipeline yourself:
 
 ## 8. Recommended Architectures (final answer)
 
-### 🥇 Path B — Fastest to a polished app (recommended default)
+### 🥇 Path B — Fastest to a polished app (CHOSEN — see `AGORA_AND_CHAT_DECISION.md`)
 
 | Layer | Choice | Why |
 |---|---|---|
 | Auth + user store | Firebase Auth + Firestore | Free, instant |
-| Messaging | Firestore realtime listeners | Free, offline cache |
+| Messaging | Firestore realtime listeners + FCM push | Free, offline cache, push bundled |
 | Push / call invites | FCM + full‑screen intent + foreground service | Required on Android |
-| **Calls (audio+video)** | **ZEGOCLOUD Express + Call UIKit** | 10,000 free min; built‑in **noise suppression (ANS/AI) + beauty + virtual background** + modern prebuilt call UI |
-| UI | ZEGO call UIKit + `flutter_chat_ui` + Material 3 | Modern out of the box |
+| **Calls (audio+video)** | **Agora RTC (`agora_rtc_engine`)** | 10,000 free min/mo; built‑in **AI Noise Suppression (AINS) + beauty + face shaping + virtual background + video denoise** |
+| UI | `flutter_chat_ui` (chat) + custom Material 3 (calls/contacts) | Modern, backend‑agnostic chat UI |
 
-**Why this wins for your requirements:** it's the *only* free option where **noise filtering *and* video filters (beauty, virtual background) *and* a modern call UI are all built into one SDK**, so you get "best noise‑filtered video & audio call + filters + modern UI" with minimal code, for $0.
+**Why this wins for your requirements:** Agora bundles the **best noise filtering (AI Noise Suppression, ~100+ noise types) *and* video filters (beauty, virtual background, denoise) into one free SDK**, and Firebase covers messaging + the push notifications that a chat/call app cannot work without — all for $0.
 
 ### 🥈 Path A — Fully free, open‑source, no vendor
 
@@ -211,13 +211,12 @@ If you don't want to build the audio pipeline yourself:
 dependencies:
   flutter:
     sdk: flutter
+  agora_rtc_engine: ^6.6.3           # calls + AI noise suppression + filters
   firebase_core: ^3.x
   firebase_auth: ^5.x
-  cloud_firestore: ^5.x
-  firebase_messaging: ^15.x
-  zego_uikit_prebuilt_call: ^4.x      # modern call UI
-  zego_express_engine: ^3.x           # calls + noise suppression + effects
-  flutter_chat_ui: ^1.x
+  cloud_firestore: ^5.x              # chat + call signaling
+  firebase_messaging: ^15.x          # push + call invites
+  flutter_chat_ui: ^1.x              # modern chat UI
   flutter_riverpod: ^2.x
   flutter_animate: ^4.x
 ```
