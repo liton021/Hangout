@@ -19,14 +19,14 @@ class AppConfig {
   // ────────────────────────────────────────────────────────────────────
   //  ▼▼▼  PASTE YOUR AGORA APP ID BETWEEN THE QUOTES BELOW  ▼▼▼
   // ────────────────────────────────────────────────────────────────────
-  static const String _agoraAppId = 'PASTE_YOUR_AGORA_APP_ID_HERE';
+  static const String _agoraAppId = 'd69f6bb5d518410e9f3dea44f6967fbb';
 
   // ────────────────────────────────────────────────────────────────────
   //  ▼▼▼  PASTE YOUR TOKEN SERVER URL BELOW (secured mode only)  ▼▼▼
   //  e.g. 'https://hangout-token-server.yourname.workers.dev'
   //  Leave EMPTY ('') for testing-mode (App ID only) projects.
   // ────────────────────────────────────────────────────────────────────
-  static const String _tokenServerUrl = '';
+  static const String _tokenServerUrl = 'https://hangout-token-server.onelitonbd.workers.dev/';
 
   /// Optional static token (dev only). Normally leave empty — when
   /// [_tokenServerUrl] is set, tokens are fetched per call automatically.
