@@ -1,7 +1,0 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<project version="4">
-  <component name="FlutterWorkspace">
-    <option name="configuration" value="ios" />
-    <option name="sdkPath" value="file:///Users/$USER$/development/flutter" />
-  </component>
-</project>
