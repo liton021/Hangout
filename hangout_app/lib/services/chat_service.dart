@@ -1,0 +1,92 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+
+import '../models/chat_message.dart';
+import '../models/chat_summary.dart';
+
+/// Firestore-backed 1-on-1 messaging.
+///
+/// Schema:
+///   chats/{chatId}                 -> { participants: [a,b], lastMessage, lastMessageAt, lastSenderId }
+///   chats/{chatId}/messages/{id}   -> ChatMessage
+class ChatService {
+  ChatService(this._db);
+
+  final FirebaseFirestore _db;
+
+  /// Deterministic chat id for a pair of users (order-independent).
+  static String chatIdFor(String a, String b) {
+    final ids = [a, b]..sort();
+    return ids.join('_');
+  }
+
+  /// Opens (or returns) the chat between [myUid] and [peerUid].
+  Future<String> ensureChat(String myUid, String peerUid) async {
+    final id = chatIdFor(myUid, peerUid);
+    final ref = _db.collection('chats').doc(id);
+    final doc = await ref.get();
+    if (!doc.exists) {
+      await ref.set({
+        'participants': [myUid, peerUid],
+        'createdAt': DateTime.now(),
+      });
+    }
+    return id;
+  }
+
+  /// Sends a message and bumps the chat's last-message summary.
+  Future<void> sendMessage({
+    required String chatId,
+    required String authorId,
+    required String text,
+  }) async {
+    final msgRef = _db
+        .collection('chats')
+        .doc(chatId)
+        .collection('messages')
+        .doc();
+    final now = DateTime.now();
+    await msgRef.set(ChatMessage(
+      id: msgRef.id,
+      chatId: chatId,
+      authorId: authorId,
+      text: text,
+      sentAt: now,
+    ).toMap());
+
+    await _db.collection('chats').doc(chatId).set({
+      'lastMessage': text,
+      'lastMessageAt': now,
+      'lastSenderId': authorId,
+    }, SetOptions(merge: true));
+  }
+
+  /// Real-time stream of messages for a chat (newest last).
+  Stream<List<ChatMessage>> messagesStream(String chatId) {
+    return _db
+        .collection('chats')
+        .doc(chatId)
+        .collection('messages')
+        .orderBy('sentAt', descending: false)
+        .snapshots()
+        .map((snap) => snap.docs.map(ChatMessage.fromSnapshot).toList());
+  }
+
+  /// Real-time stream of chat summaries the user participates in.
+  ///
+  /// Sorted client-side so no Firestore composite index is required.
+  Stream<List<ChatSummary>> chatsStream(String myUid) {
+    return _db
+        .collection('chats')
+        .where('participants', arrayContains: myUid)
+        .snapshots()
+        .map((snap) {
+      final list = snap.docs.map(ChatSummary.fromSnapshot).toList();
+      list.sort((a, b) {
+        final ta = a.lastMessageAt ?? DateTime.fromMillisecondsSinceEpoch(0);
+        final tb = b.lastMessageAt ?? DateTime.fromMillisecondsSinceEpoch(0);
+        return tb.compareTo(ta);
+      });
+      return list;
+    });
+  }
+}
