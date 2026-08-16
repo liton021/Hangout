@@ -10,6 +10,7 @@ import '../../providers/providers.dart';
 import '../../services/call_service.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/call_action_button.dart';
+import '../../widgets/quality_indicator.dart';
 
 class AudioCallScreen extends ConsumerStatefulWidget {
   const AudioCallScreen({
@@ -37,7 +38,11 @@ class _AudioCallScreenState extends ConsumerState<AudioCallScreen> {
   int _seconds = 0;
   Timer? _timer;
   StreamSubscription<DocumentSnapshot>? _statusSub;
+  StreamSubscription<int>? _networkSub;
   bool _ending = false;
+
+  // Quality tracking for display.
+  int _networkQuality = 0;
 
   @override
   void initState() {
@@ -66,6 +71,11 @@ class _AudioCallScreenState extends ConsumerState<AudioCallScreen> {
     _service.onError.listen((msg) {
       if (!mounted) return;
       setState(() => _error = msg);
+    });
+    // Listen for network quality changes for the indicator.
+    _networkSub = _service.onNetworkQualityChanged.listen((quality) {
+      if (!mounted) return;
+      setState(() => _networkQuality = quality);
     });
   }
 
@@ -152,6 +162,7 @@ class _AudioCallScreenState extends ConsumerState<AudioCallScreen> {
   void dispose() {
     _timer?.cancel();
     _statusSub?.cancel();
+    _networkSub?.cancel();
     _service.dispose();
     super.dispose();
   }
@@ -207,6 +218,15 @@ class _AudioCallScreenState extends ConsumerState<AudioCallScreen> {
                   ],
                 ),
               ),
+              // Quality indicator
+              if (_joined && !_ringing) ...[
+                const SizedBox(height: 8),
+                CallQualityIndicator(
+                  networkQuality: _networkQuality,
+                  videoQuality: null,
+                  audioQuality: _service.currentAudioQualityLabel,
+                ),
+              ],
               const Spacer(),
               // Teal→aqua gradient avatar (report §6.4).
               Container(

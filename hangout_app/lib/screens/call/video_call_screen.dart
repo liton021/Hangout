@@ -11,6 +11,7 @@ import '../../providers/providers.dart';
 import '../../services/call_service.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/call_action_button.dart';
+import '../../widgets/quality_indicator.dart';
 
 class VideoCallScreen extends ConsumerStatefulWidget {
   const VideoCallScreen({
@@ -41,7 +42,11 @@ class _VideoCallScreenState extends ConsumerState<VideoCallScreen> {
   int _seconds = 0;
   Timer? _timer;
   StreamSubscription<DocumentSnapshot>? _statusSub;
+  StreamSubscription<int>? _networkSub;
   bool _ending = false;
+
+  // Quality tracking for display.
+  int _networkQuality = 0;
 
   @override
   void initState() {
@@ -70,6 +75,11 @@ class _VideoCallScreenState extends ConsumerState<VideoCallScreen> {
     _service.onError.listen((msg) {
       if (!mounted) return;
       setState(() => _error = msg);
+    });
+    // Listen for network quality changes for the indicator.
+    _networkSub = _service.onNetworkQualityChanged.listen((quality) {
+      if (!mounted) return;
+      setState(() => _networkQuality = quality);
     });
   }
 
@@ -163,6 +173,7 @@ class _VideoCallScreenState extends ConsumerState<VideoCallScreen> {
   void dispose() {
     _timer?.cancel();
     _statusSub?.cancel();
+    _networkSub?.cancel();
     for (final c in _remoteControllers.values) {
       try {
         c.dispose();
@@ -215,6 +226,20 @@ class _VideoCallScreenState extends ConsumerState<VideoCallScreen> {
               ],
             ),
           ),
+          // Quality indicator (top center)
+          if (_joined && !_ringing)
+            Positioned(
+              top: MediaQuery.of(context).padding.top + 18,
+              left: 0,
+              right: 0,
+              child: Center(
+                child: CallQualityIndicator(
+                  networkQuality: _networkQuality,
+                  videoQuality: _service.currentVideoQualityLabel,
+                  audioQuality: _service.currentAudioQualityLabel,
+                ),
+              ),
+            ),
           if (_error != null)
             Positioned(
               bottom: 140,
