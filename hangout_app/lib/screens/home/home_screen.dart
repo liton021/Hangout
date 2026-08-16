@@ -358,6 +358,7 @@ class _ChatsTab extends ConsumerWidget {
     final users = ref.watch(usersProvider).value ?? const [];
     final byId = {for (final u in users) u.uid: u};
     final meUid = ref.watch(authStateProvider).value?.uid;
+    final dark = Theme.of(context).brightness == Brightness.dark;
 
     return Stack(
       children: [
@@ -397,9 +398,16 @@ class _ChatsTab extends ConsumerWidget {
                     onRefresh: () async => ref.invalidate(chatsProvider),
                     child: ListView.separated(
                       physics: const AlwaysScrollableScrollPhysics(),
-                      padding: const EdgeInsets.fromLTRB(16, 12, 16, 96),
+                      padding: const EdgeInsets.fromLTRB(0, 8, 0, 96),
                       itemCount: filtered.length,
-                      separatorBuilder: (_, __) => const SizedBox(height: 8),
+                      separatorBuilder: (_, __) => Divider(
+                        height: 1,
+                        indent: 76,
+                        endIndent: 16,
+                        color: dark
+                            ? Colors.white.withOpacity(.06)
+                            : const Color(0xFFE8F4F1),
+                      ),
                       itemBuilder: (context, i) {
                         final chat = filtered[i];
                         final peer = _peerOf(chat, meUid, byId);
@@ -467,55 +475,60 @@ class _ChatTile extends StatelessWidget {
         chat.lastMessageAt != null ? _formatTime(chat.lastMessageAt!.toLocal()) : '';
     final preview = chat.lastMessage ?? 'Start the conversation';
 
-    return Card(
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(16),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
-          child: Row(
-            children: [
-              UserAvatar(user: peer, radius: 27, showPresence: true),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Text(peer.name,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: Theme.of(context).textTheme.titleMedium),
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          time,
+    // WhatsApp-style clean row: no card box, avatar + name on top /
+    // preview below, hairline divider between rows.
+    return InkWell(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        child: Row(
+          children: [
+            UserAvatar(user: peer, radius: 26, showPresence: true),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          peer.name,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                           style: TextStyle(
-                            color: dark ? Colors.white38 : AppColors.sageGray,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
+                            fontSize: 16,
+                            fontWeight: FontWeight.w700,
+                            color: dark ? Colors.white : AppColors.deepInk,
                           ),
                         ),
-                      ],
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      preview,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        color: dark ? Colors.white60 : AppColors.sageGray,
-                        fontSize: 14,
-                        fontWeight: FontWeight.w500,
                       ),
+                      const SizedBox(width: 8),
+                      Text(
+                        time,
+                        style: TextStyle(
+                          color: dark ? Colors.white38 : AppColors.sageGray,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    preview,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: dark ? Colors.white60 : AppColors.sageGray,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
