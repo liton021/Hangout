@@ -71,6 +71,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       await ref.read(chatServiceProvider).sendMessage(
             chatId: widget.chatId,
             authorId: me.uid,
+            authorName: me.displayName?.trim().isNotEmpty == true
+                ? me.displayName!.trim()
+                : 'Hangout user',
             text: text,
           );
       _scrollToBottom();

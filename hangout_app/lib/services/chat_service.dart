@@ -2,16 +2,24 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../models/chat_message.dart';
 import '../models/chat_summary.dart';
+import '../models/push_event.dart';
+import 'push_service.dart';
 
 /// Firestore-backed 1-on-1 messaging.
 ///
 /// Schema:
 ///   chats/{chatId}                 -> { participants: [a,b], lastMessage, lastMessageAt, lastSenderId }
 ///   chats/{chatId}/messages/{id}   -> ChatMessage
+///
+/// When a message is sent, a `new_message` event is also pushed to the
+/// recipient over the FCM-free push service (WebSocket + local notification)
+/// so the message arrives even while the recipient's app is in the
+/// background.
 class ChatService {
-  ChatService(this._db);
+  ChatService(this._db, this._push);
 
   final FirebaseFirestore _db;
+  final PushService _push;
 
   /// Deterministic chat id for a pair of users (order-independent).
   static String chatIdFor(String a, String b) {
@@ -37,6 +45,7 @@ class ChatService {
   Future<void> sendMessage({
     required String chatId,
     required String authorId,
+    required String authorName,
     required String text,
   }) async {
     final msgRef = _db
@@ -58,6 +67,29 @@ class ChatService {
       'lastMessageAt': now,
       'lastSenderId': authorId,
     }, SetOptions(merge: true));
+
+    // FCM-free push to the other participant (best effort — while the app
+    // is in the background this raises the message notification).
+    var otherUid = '';
+    for (final part in chatId.split('_')) {
+      if (part != authorId) {
+        otherUid = part;
+        break;
+      }
+    }
+    if (otherUid.isNotEmpty) {
+      await _push.send(
+        toUid: otherUid,
+        type: PushEventType.newMessage,
+        payload: {
+          'chatId': chatId,
+          'senderId': authorId,
+          'senderName': authorName,
+          'text': text,
+          'sentAt': now.millisecondsSinceEpoch,
+        },
+      );
+    }
   }
 
   /// Live count of messages in [chatId] that [myUid] hasn't read yet.

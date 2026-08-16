@@ -1,7 +1,13 @@
-# Hangout Agora Token Server (Cloudflare Worker)
+# Hangout Token + Push Server (Cloudflare Worker)
 
-Generates Agora RTC tokens (AccessToken2 / "007") on demand so the app can run
-in **App ID + Token (secured) mode** with a different channel per call.
+One Worker, two jobs — both **free tier, no billing**:
+
+1. **Agora RTC tokens** (AccessToken2 / "007") — the app runs in
+   "App ID + Token (secured) mode" with a different channel per call.
+2. **FCM-free push/signaling** — each device keeps a WebSocket open to the
+   Worker; when someone messages or calls you, the event is forwarded to your
+   device and the app raises a local notification itself. No Firebase Cloud
+   Messaging, no Google Cloud Run, no service account, no billing.
 
 ## Deploy (one time, ~5 minutes)
 
@@ -12,7 +18,7 @@ in **App ID + Token (secured) mode** with a different channel per call.
 
    ```bash
    npx wrangler login          # opens browser, authorize
-   npx wrangler deploy         # deploys the worker
+   npx wrangler deploy         # deploys worker + Durable Object ("PushRoom")
    ```
 
 3. Set the two secrets (values from https://console.agora.io → your project):
@@ -28,26 +34,26 @@ in **App ID + Token (secured) mode** with a different channel per call.
    https://hangout-token-server.<your-subdomain>.workers.dev
    ```
 
-5. Paste that URL into `hangout_app/lib/config/app_config.dart`:
-
-   ```dart
-   static const String _tokenServerUrl =
-       'https://hangout-token-server.<your-subdomain>.workers.dev';
-   ```
-
-   Also set `_agoraAppId` to the same App ID. Rebuild the app. Done.
+5. Paste that URL into `hangout_app/lib/config/app_config.dart`
+   (`_tokenServerUrl` **and** `_pushServerUrl`), or override with
+   `--dart-define=TOKEN_SERVER_URL=...` / `--dart-define=PUSH_SERVER_URL=...`.
+   Rebuild the app. Done.
 
 ## Test it
 
 ```bash
+# Agora tokens:
 curl "https://hangout-token-server.<your-subdomain>.workers.dev/rtc-token?channel=test123"
+# → JSON with a token starting with "007"
 ```
 
-Should return JSON with a `token` starting with `007`.
+Push endpoints can't be tested with curl alone (they require a signed
+Firebase ID token) — test end-to-end from the app: background one device and
+send it a message/call from another.
 
 ## API
 
-`GET /rtc-token?channel=<name>&uid=<uid>&expire=<seconds>`
+### `GET /rtc-token?channel=<name>&uid=<uid>&expire=<seconds>`
 
 | param   | required | default | notes                          |
 |---------|----------|---------|--------------------------------|
@@ -55,9 +61,28 @@ Should return JSON with a `token` starting with `007`.
 | uid     | no       | 0       | 0 = token valid for any uid    |
 | expire  | no       | 3600    | seconds, 60–86400              |
 
+### `GET /ws?uid=<uid>` — device mailbox (WebSocket)
+
+- Requires header `Authorization: Bearer <firebase-id-token>`; the token is
+  verified against Google's public certs (RS256, cached ~6h) and must match
+  `uid`. No Firebase console changes needed — this is pure JWT verification.
+- Multiple devices per user are supported; offline events are buffered in the
+  Durable Object for ~10 minutes (max 25).
+
+### `POST /send` — push an event to a user
+
+- Requires the same `Authorization: Bearer <firebase-id-token>` header.
+- Body: `{ "to": "<uid>", "event": "call_invite" | "call_cancelled" |
+  "call_rejected" | "new_message", "payload": { ... } }` (payload ≤ 16 KB).
+- Rate limit: 120 sends/minute per user.
+
 ## Security notes
 
-- The App Certificate lives ONLY in Cloudflare secrets — never in the app.
-- Free tier: 100,000 requests/day (one request per call join — plenty).
-- Optional hardening later: require a Firebase Auth ID token in the request
-  and verify it in the worker, so only logged-in Hangout users can get tokens.
+- The Agora App Certificate lives ONLY in Cloudflare secrets — never in the app.
+- Push endpoints are authenticated: only a signed-in Hangout user (with a
+  valid Firebase ID token) can connect a mailbox or send events, and senders
+  can only address events, never impersonate a recipient.
+- `FIREBASE_PROJECT_ID` (set in `wrangler.toml`) is not secret — it only tells
+  the token verifier which project's tokens to accept.
+- Free tier: 100,000 requests/day including WebSocket messages + Durable
+  Objects free tier — plenty for a small app.

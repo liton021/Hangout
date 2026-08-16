@@ -1,6 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -59,10 +58,6 @@ final firestoreProvider = Provider<FirebaseFirestore>((ref) {
   return FirebaseFirestore.instance;
 });
 
-final messagingProvider = Provider<FirebaseMessaging>((ref) {
-  return FirebaseMessaging.instance;
-});
-
 // ---------------------------------------------------------------------------
 // Services
 // ---------------------------------------------------------------------------
@@ -76,11 +71,24 @@ final userServiceProvider = Provider<UserService>((ref) {
 });
 
 final chatServiceProvider = Provider<ChatService>((ref) {
-  return ChatService(ref.watch(firestoreProvider));
+  return ChatService(
+    ref.watch(firestoreProvider),
+    ref.watch(pushServiceProvider),
+  );
 });
 
+/// FCM-free push: WebSocket to the Cloudflare Worker + local notifications.
 final pushServiceProvider = Provider<PushService>((ref) {
-  return PushService(ref.watch(messagingProvider));
+  return PushService(
+    idTokenProvider: () async {
+      final user = ref.read(authServiceProvider).currentUser;
+      try {
+        return await user?.getIdToken();
+      } catch (_) {
+        return null;
+      }
+    },
+  );
 });
 
 // ---------------------------------------------------------------------------

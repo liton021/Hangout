@@ -17,8 +17,13 @@ Stack (see `../RESEARCH_REPORT.md` and `../AGORA_AND_CHAT_DECISION.md`):
 | Calls + noise filtering + filters | **Agora** `agora_rtc_engine` (built-in, free) |
 | Auth | Firebase Auth |
 | Chat + call signaling | Cloud Firestore |
-| Push | Firebase Cloud Messaging |
+| **Push** | **Cloudflare Worker WebSocket + local notifications (FCM-free)** |
 | State | flutter_riverpod |
+
+> **No FCM.** Push notifications for calls & messages are delivered over a
+> persistent WebSocket to the Cloudflare Worker in `../token_server/` (free
+> plan, no billing) and raised locally by the app — see
+> `../docs/PUSH_NOTIFICATIONS.md` for why and how.
 
 ---
 
@@ -59,7 +64,36 @@ Stack (see `../RESEARCH_REPORT.md` and `../AGORA_AND_CHAT_DECISION.md`):
 > **not** activate the "AI Noise Suppression" extension: it is paid and asks
 > for a credit card.
 
-## 3. Run
+## 3. Configure push (FCM-free, required for background notifications)
+
+Push rides on the **Cloudflare Worker** in `../token_server/` — no Firebase
+Cloud Messaging, no billing:
+
+1. Deploy the Worker (once):
+
+   ```bash
+   cd ../token_server
+   npm i -g wrangler        # or: npx wrangler
+   wrangler login
+   wrangler secret put AGORA_APP_ID        # your Agora App ID
+   wrangler secret put AGORA_APP_CERTIFICATE  # Agora Primary Certificate
+   wrangler deploy          # FIREBASE_PROJECT_ID is already set in wrangler.toml
+   ```
+
+2. Point the app at it in `lib/config/app_config.dart` (`_pushServerUrl` and
+   `_tokenServerUrl`) — or override per build:
+
+   ```bash
+   flutter run \
+     --dart-define=AGORA_APP_ID=YOUR_AGORA_APP_ID \
+     --dart-define=PUSH_SERVER_URL=https://hangout-token-server.<you>.workers.dev
+   ```
+
+That's it — messages and calls now reach the app while it's in the background
+(via a foreground service that keeps the WebSocket alive, plus full-screen
+intent notifications for incoming calls).
+
+## 4. Run
 
 ```bash
 flutter pub get
@@ -86,22 +120,28 @@ flutter build apk --release --dart-define=AGORA_APP_ID=YOUR_AGORA_APP_ID
 5. During a video call use **Beauty**, **Blur**, and **Flip**; during an audio
    call toggle **Noise** (built-in noise suppression + echo cancellation).
 
+To test **background push**: put device B in the background (or lock it) and
+send a message / call from device A. Device B should raise a heads-up message
+notification or a full-screen ringing call alert with **Accept/Decline** —
+with no FCM involved.
+
 ---
 
 ## Project structure
 
 ```
 lib/
-├── main.dart                  # Firebase init + entry point
-├── app.dart                   # root widget, auth routing, incoming-call listener
-├── config/app_config.dart     # Agora App ID / token (--dart-define)
+├── main.dart                  # Firebase init + foreground-task init + entry point
+├── app.dart                   # root widget, auth routing, push wiring, incoming-call listener
+├── config/app_config.dart     # Agora App ID / token + push server URL (--dart-define)
 ├── theme/app_theme.dart       # Material 3 theme + brand colors
-├── models/                    # AppUser, ChatMessage, ChatSummary, CallData
+├── models/                    # AppUser, ChatMessage, ChatSummary, CallData, PushEvent
 ├── services/
 │   ├── auth_service.dart
 │   ├── user_service.dart
-│   ├── chat_service.dart      # Firestore messaging
-│   ├── push_service.dart      # FCM
+│   ├── chat_service.dart      # Firestore messaging + message push hook
+│   ├── push_service.dart      # FCM-free push (WebSocket + local notifications)
+│   ├── background_connection.dart  # foreground service keeping the socket alive
 │   └── call_service.dart      # Agora engine wrapper (noise NS/AEC/AGC, beauty, blur)
 ├── providers/                 # Riverpod providers + call controller
 ├── screens/
@@ -117,7 +157,7 @@ lib/
 ## Firestore schema
 
 ```
-users/{uid}            -> { name, email, avatarUrl, fcmToken, createdAt }
+users/{uid}            -> { name, email, avatarUrl, createdAt }
 chats/{chatId}         -> { participants: [a,b], lastMessage, lastMessageAt, lastSenderId }
 chats/{chatId}/messages/{id} -> { chatId, authorId, text, sentAt, read }
 calls/{id}             -> { callerId, callerName, calleeId, channelName, type, status, createdAt }
@@ -127,18 +167,34 @@ calls/{id}             -> { callerId, callerName, calleeId, channelName, type, s
 
 ---
 
+## How background push works (FCM-free)
+
+1. On sign-in the app opens a WebSocket to
+   `wss://<push-server>/ws?uid=<uid>` (authenticated with the Firebase ID
+   token, verified server-side against Google's public certs — no service
+   account, no Cloud Messaging API, no billing).
+2. A **foreground service** (`dataSync|remoteMessaging`) keeps the engine —
+   and the socket — alive while the app is backgrounded/killed.
+3. Sending a message or placing a call POSTs an event to the Worker's `/send`
+   endpoint; the Worker (a Durable Object per user, free tier) forwards it to
+   every connected device of that user. Events are buffered ~10 min if the
+   device is offline.
+4. The device raises a **local** notification: heads-up for messages,
+   full-screen-intent ringing alert with Accept/Decline for calls.
+
+Battery/lifecycle caveats: like all FCM-free approaches, delivery depends on
+the foreground service surviving Doze/OEM battery killers — advise users to
+allow background activity for Hangout. See `../docs/PUSH_NOTIFICATIONS.md`.
+
+---
+
 ## Known limitations / roadmap
 
-- **Background incoming calls** — currently an incoming call rings only while
-  the app is open (Firestore signaling). To ring a *closed* app you need a
-  full-screen-intent notification + foreground service. Recommended:
-  `flutter_callkit_incoming`, or send an FCM data message from a Cloud Function
-  and launch a full-screen intent (`USE_FULL_SCREEN_INTENT` is already declared
-  in the manifest).
-- **Push for new messages** — FCM tokens are captured and stored; add a
-  Cloud Function to fan out message notifications, or use Firestore triggers.
 - **Group chats / image & file messages / read receipts / typing** — not yet
   implemented (1-on-1 text only).
+- **Call ringing while the app is force-stopped** — works while the
+  foreground service runs; if the user force-stops the app or an aggressive
+  OEM battery manager kills the service, delivery resumes on next open.
 - **Agora token** — production requires a token server; dev uses App ID only.
 
 ---
@@ -153,5 +209,7 @@ calls/{id}             -> { callerId, callerName, calleeId, channelName, type, s
   processing (on by default, no console extension needed); for beauty/background
   blur, ensure the Agora "Virtual Background" extension is enabled in the
   console if you want those effects.
-- **No incoming call UI** → both apps must be in the foreground (see roadmap
-  for background calls).
+- **No incoming call UI / no background notifications** → check that the
+  Worker was redeployed (`wrangler deploy`) and `_pushServerUrl` points at it;
+  also grant notification permission and disable battery optimization for
+  Hangout on the receiving device.

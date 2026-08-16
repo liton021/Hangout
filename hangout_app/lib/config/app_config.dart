@@ -56,6 +56,25 @@ class AppConfig {
     defaultValue: _tokenServerUrl,
   );
 
+  // ────────────────────────────────────────────────────────────────────
+  //  ▼▼▼  PUSH / SIGNALING SERVER (FCM-free notifications)  ▼▼▼
+  //  Same Cloudflare Worker as the token server. The app keeps a
+  //  WebSocket open to it and receives message/call events; it raises
+  //  local notifications itself. See `docs/PUSH_NOTIFICATIONS.md`.
+  // ────────────────────────────────────────────────────────────────────
+  static const String _pushServerUrl =
+      'https://hangout-token-server.onelitonbd.workers.dev';
+
+  /// Effective push server URL. `--dart-define=PUSH_SERVER_URL=...`
+  /// overrides the hard-coded value above.
+  static const String pushServerUrl = String.fromEnvironment(
+    'PUSH_SERVER_URL',
+    defaultValue: _pushServerUrl,
+  );
+
+  /// True when a push/signaling server is configured.
+  static bool get usePushServer => pushServerUrl.isNotEmpty;
+
   /// True when a token server is configured (secured mode).
   static bool get useTokenServer => tokenServerUrl.isNotEmpty;
 

@@ -77,4 +77,32 @@ class CallData {
         'status': status.name,
         'createdAt': Timestamp.fromDate(createdAt),
       };
+
+  /// Compact payload carried in a push notification / signaling event
+  /// (no Firestore timestamps — just epoch millis).
+  Map<String, dynamic> toPushMap() => {
+        'callId': id,
+        'callerId': callerId,
+        'callerName': callerName,
+        'calleeId': calleeId,
+        'calleeName': calleeName,
+        'channelName': channelName,
+        'type': type == CallType.video ? 'video' : 'audio',
+        'createdAt': createdAt.millisecondsSinceEpoch,
+      };
+
+  /// Rebuilds a [CallData] from a [toPushMap] payload (push event).
+  factory CallData.fromPushMap(Map<String, dynamic> map) => CallData(
+        id: map['callId'] as String? ?? '',
+        callerId: map['callerId'] as String? ?? '',
+        callerName: map['callerName'] as String? ?? 'User',
+        calleeId: map['calleeId'] as String? ?? '',
+        calleeName: map['calleeName'] as String? ?? 'User',
+        channelName: map['channelName'] as String? ?? (map['callId'] as String? ?? ''),
+        type: map['type'] == 'video' ? CallType.video : CallType.audio,
+        status: CallStatus.ringing,
+        createdAt: DateTime.fromMillisecondsSinceEpoch(
+          (map['createdAt'] as num?)?.toInt() ?? 0,
+        ),
+      );
 }

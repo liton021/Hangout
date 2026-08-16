@@ -13,22 +13,19 @@ class UserService {
       _db.collection('users');
 
   /// Creates or updates the profile for [user].
-  Future<void> upsert(User user, {String? fcmToken}) async {
+  ///
+  /// No device/push token needed: push is addressed by user id (each device
+  /// connects its own WebSocket to the push server — see [PushService]).
+  Future<void> upsert(User user) async {
     final ref = _users.doc(user.uid);
     final existing = await ref.get();
     final data = {
       'name': user.displayName ?? 'User',
       'email': user.email ?? '',
-      'fcmToken': fcmToken ?? (existing.data()?['fcmToken']),
       if (!existing.exists) 'createdAt': DateTime.now(),
     };
-    // Don't clobber fcmToken with null.
     data.removeWhere((_, v) => v == null);
     await ref.set(data, SetOptions(merge: true));
-  }
-
-  Future<void> updateFcmToken(String uid, String token) async {
-    await _users.doc(uid).set({'fcmToken': token}, SetOptions(merge: true));
   }
 
   Future<AppUser?> getById(String uid) async {

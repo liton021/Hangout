@@ -24,6 +24,12 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_PHONE_CALL" />
     <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
 
+    <!-- FCM-free push: foreground service keeps the signaling WebSocket
+         alive in the background (receivers/permissions come from the
+         flutter_foreground_task plugin's own manifest merge). -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_REMOTE_MESSAGING" />
+
     <application
         android:label="Hangout"
         android:name="${applicationName}"
@@ -38,7 +44,9 @@
             android:theme="@style/LaunchTheme"
             android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode"
             android:hardwareAccelerated="true"
-            android:windowSoftInputMode="adjustResize">
+            android:windowSoftInputMode="adjustResize"
+            android:showWhenLocked="true"
+            android:turnScreenOn="true">
             <meta-data
                 android:name="io.flutter.embedding.android.NormalTheme"
                 android:resource="@style/NormalTheme" />
@@ -48,13 +56,12 @@
             </intent-filter>
         </activity>
 
-        <!-- Firebase Cloud Messaging default notification channel + icon -->
-        <meta-data
-            android:name="com.google.firebase.messaging.default_notification_channel_id"
-            android:value="hangout_messages" />
-        <meta-data
-            android:name="com.google.firebase.messaging.default_notification_icon"
-            android:resource="@drawable/ic_notification" />
+        <!-- flutter_foreground_task: keeps the push WebSocket alive while
+             the app is backgrounded/killed (no FCM involved). -->
+        <service
+            android:name="com.pravera.flutter_foreground_task.service.ForegroundService"
+            android:foregroundServiceType="dataSync|remoteMessaging"
+            android:exported="false" />
 
         <meta-data
             android:name="flutterEmbedding"

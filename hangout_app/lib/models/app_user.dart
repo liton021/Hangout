@@ -4,7 +4,6 @@ class AppUser {
   final String name;
   final String email;
   final String? avatarUrl;
-  final String? fcmToken;
   final DateTime? createdAt;
 
   const AppUser({
@@ -12,7 +11,6 @@ class AppUser {
     required this.name,
     required this.email,
     this.avatarUrl,
-    this.fcmToken,
     this.createdAt,
   });
 
@@ -22,7 +20,6 @@ class AppUser {
       name: map['name'] as String? ?? 'User',
       email: map['email'] as String? ?? '',
       avatarUrl: map['avatarUrl'] as String?,
-      fcmToken: map['fcmToken'] as String?,
       createdAt: (map['createdAt'] as dynamic)?.toDate(),
     );
   }
@@ -31,7 +28,6 @@ class AppUser {
         'name': name,
         'email': email,
         'avatarUrl': avatarUrl,
-        'fcmToken': fcmToken,
         'createdAt': createdAt ?? DateTime.now(),
       };
 
