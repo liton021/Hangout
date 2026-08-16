@@ -161,10 +161,10 @@ class _ContactsTabState extends ConsumerState<ContactsTab> {
                         20, items.isEmpty ? 6 : 18, 20, 10),
                     child: Text(
                       letter,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 20,
                         fontWeight: FontWeight.w700,
-                        color: AppColors.accentSoft,
+                        color: context.colors.accentSoft,
                       ),
                     ),
                   ));
@@ -174,7 +174,7 @@ class _ContactsTabState extends ConsumerState<ContactsTab> {
 
               return RefreshIndicator(
                 color: AppColors.accent,
-                backgroundColor: AppColors.surface,
+                backgroundColor: context.colors.surface,
                 onRefresh: () async => ref.invalidate(usersProvider),
                 child: ListView.builder(
                   physics: const AlwaysScrollableScrollPhysics(),
@@ -218,7 +218,7 @@ class _FrequentStrip extends ConsumerWidget {
           return SizedBox(
             width: 96,
             child: Material(
-              color: AppColors.surface,
+              color: context.colors.surface,
               borderRadius: BorderRadius.circular(AppRadius.md),
               clipBehavior: Clip.antiAlias,
               child: InkWell(
@@ -239,10 +239,10 @@ class _FrequentStrip extends ConsumerWidget {
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           textAlign: TextAlign.center,
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 13.5,
                             fontWeight: FontWeight.w600,
-                            color: AppColors.textPrimary,
+                            color: context.colors.textPrimary,
                           ),
                         ),
                       ),
@@ -265,6 +265,7 @@ class _ContactRow extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final palette = context.colors;
     return InkWell(
       onTap: () => ContactActions.openChat(context, ref, user),
       onLongPress: () => ContactActions.showQuickActions(context, ref, user),
@@ -284,11 +285,11 @@ class _ContactRow extends ConsumerWidget {
                       user.name,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 17.5,
                         fontWeight: FontWeight.w600,
                         letterSpacing: -0.2,
-                        color: AppColors.textPrimary,
+                        color: palette.textPrimary,
                       ),
                     ),
                     const SizedBox(height: 3),
@@ -296,13 +297,13 @@ class _ContactRow extends ConsumerWidget {
                       user.email.isEmpty ? 'On Hangout' : user.email,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 14.5,
-                        color: AppColors.textSecondary,
+                        color: palette.textSecondary,
                       ),
                     ),
                     const SizedBox(height: 10),
-                    const Divider(height: 1, color: AppColors.divider),
+                    Divider(height: 1, color: palette.divider),
                   ],
                 ),
               ),

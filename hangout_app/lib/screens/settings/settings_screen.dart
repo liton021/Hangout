@@ -110,11 +110,11 @@ class SettingsScreen extends ConsumerWidget {
                 ],
               ),
               const SizedBox(height: 22),
-              const Center(
+              Center(
                 child: Text(
                   'Hangout 1.0.0',
                   style: TextStyle(
-                    color: AppColors.textTertiary,
+                    color: context.colors.textTertiary,
                     fontSize: 12.5,
                   ),
                 ),
@@ -148,12 +148,12 @@ class SettingsScreen extends ConsumerWidget {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
+              Text(
                 'Account',
                 style: TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.w700,
-                  color: AppColors.textPrimary,
+                  color: sheetContext.colors.textPrimary,
                 ),
               ),
               const SizedBox(height: 16),
@@ -185,11 +185,11 @@ class SettingsScreen extends ConsumerWidget {
       applicationVersion: '1.0.0',
       applicationLegalese:
           'Messaging and voice/video calling with AI noise suppression.',
-      children: const [
-        SizedBox(height: 12),
+      children: [
+        const SizedBox(height: 12),
         Text(
           'Need a hand? Reach out from the Help center and we’ll get back to you.',
-          style: TextStyle(color: AppColors.textSecondary),
+          style: TextStyle(color: context.colors.textSecondary),
         ),
       ],
     );
@@ -207,14 +207,14 @@ class SettingsScreen extends ConsumerWidget {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Padding(
-                  padding: EdgeInsets.only(left: 4, bottom: 8),
+                Padding(
+                  padding: const EdgeInsets.only(left: 4, bottom: 8),
                   child: Text(
                     'Appearance',
                     style: TextStyle(
                       fontSize: 20,
                       fontWeight: FontWeight.w700,
-                      color: AppColors.textPrimary,
+                      color: sheetContext.colors.textPrimary,
                     ),
                   ),
                 ),
@@ -231,9 +231,9 @@ class SettingsScreen extends ConsumerWidget {
                     contentPadding: EdgeInsets.zero,
                     title: Text(
                       _themeLabel(mode),
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontWeight: FontWeight.w600,
-                        color: AppColors.textPrimary,
+                        color: sheetContext.colors.textPrimary,
                       ),
                     ),
                   ),
@@ -278,10 +278,11 @@ class _ProfileCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = context.colors;
     return Container(
       width: double.infinity,
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: palette.surface,
         borderRadius: BorderRadius.circular(AppRadius.lg),
       ),
       padding: const EdgeInsets.symmetric(vertical: 26, horizontal: 20),
@@ -292,7 +293,7 @@ class _ProfileCard extends StatelessWidget {
             radius: 56,
             showPresence: true,
             ringColor: AppColors.accent,
-            presenceBorderColor: AppColors.surface,
+            presenceBorderColor: palette.surface,
           ),
           const SizedBox(height: 18),
           Text(
@@ -300,11 +301,11 @@ class _ProfileCard extends StatelessWidget {
             textAlign: TextAlign.center,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 26,
               fontWeight: FontWeight.w700,
               letterSpacing: -0.5,
-              color: AppColors.textPrimary,
+              color: palette.textPrimary,
             ),
           ),
           const SizedBox(height: 6),
@@ -313,22 +314,22 @@ class _ProfileCard extends StatelessWidget {
             textAlign: TextAlign.center,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 16.5,
-              color: AppColors.textSecondary,
+              color: palette.textSecondary,
             ),
           ),
           const SizedBox(height: 16),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             decoration: BoxDecoration(
-              color: AppColors.surfaceAlt,
+              color: palette.surfaceAlt,
               borderRadius: BorderRadius.circular(AppRadius.pill),
             ),
-            child: const Row(
+            child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                SizedBox(
+                const SizedBox(
                   width: 9,
                   height: 9,
                   child: DecoratedBox(
@@ -338,13 +339,13 @@ class _ProfileCard extends StatelessWidget {
                     ),
                   ),
                 ),
-                SizedBox(width: 8),
+                const SizedBox(width: 8),
                 Text(
                   'Online',
                   style: TextStyle(
                     fontSize: 14.5,
                     fontWeight: FontWeight.w500,
-                    color: AppColors.textPrimary,
+                    color: palette.textPrimary,
                   ),
                 ),
               ],
@@ -375,6 +376,7 @@ class SettingsRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = context.colors;
     final tint = danger ? AppColors.danger : AppColors.accent;
     return InkWell(
       onTap: onTap,
@@ -394,7 +396,7 @@ class SettingsRow extends StatelessWidget {
                       fontSize: 18,
                       fontWeight: FontWeight.w600,
                       letterSpacing: -0.2,
-                      color: danger ? AppColors.danger : AppColors.textPrimary,
+                      color: danger ? AppColors.danger : palette.textPrimary,
                     ),
                   ),
                   const SizedBox(height: 3),
@@ -402,19 +404,19 @@ class SettingsRow extends StatelessWidget {
                     subtitle,
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 14.5,
                       height: 1.3,
-                      color: AppColors.textSecondary,
+                      color: palette.textSecondary,
                     ),
                   ),
                 ],
               ),
             ),
             const SizedBox(width: 8),
-            const Icon(
+            Icon(
               Icons.chevron_right_rounded,
-              color: AppColors.textSecondary,
+              color: palette.textSecondary,
               size: 26,
             ),
           ],
@@ -432,6 +434,7 @@ class _AccountLine extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = context.colors;
     return Padding(
       padding: const EdgeInsets.only(bottom: 14),
       child: Column(
@@ -439,19 +442,19 @@ class _AccountLine extends StatelessWidget {
         children: [
           Text(
             label.toUpperCase(),
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 11.5,
               fontWeight: FontWeight.w600,
               letterSpacing: 1.2,
-              color: AppColors.textSecondary,
+              color: palette.textSecondary,
             ),
           ),
           const SizedBox(height: 3),
           Text(
             value,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 16,
-              color: AppColors.textPrimary,
+              color: palette.textPrimary,
             ),
           ),
         ],

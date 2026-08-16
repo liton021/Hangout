@@ -25,11 +25,11 @@ class AppHeader extends StatelessWidget {
       maxLines: 1,
       overflow: TextOverflow.ellipsis,
       textAlign: centerTitle ? TextAlign.center : TextAlign.start,
-      style: const TextStyle(
+      style: TextStyle(
         fontSize: 24,
         fontWeight: FontWeight.w800,
         letterSpacing: -0.5,
-        color: AppColors.accentSoft,
+        color: context.colors.accentSoft,
       ),
     );
 
@@ -63,20 +63,22 @@ class HeaderIconButton extends StatelessWidget {
     required this.icon,
     required this.onPressed,
     required this.tooltip,
-    this.color = AppColors.textPrimary,
+    this.color,
   });
 
   final IconData icon;
   final VoidCallback onPressed;
   final String tooltip;
-  final Color color;
+
+  /// Defaults to [HangoutPalette.textPrimary] of the active theme.
+  final Color? color;
 
   @override
   Widget build(BuildContext context) {
     return IconButton(
       onPressed: onPressed,
       tooltip: tooltip,
-      icon: Icon(icon, size: 26, color: color),
+      icon: Icon(icon, size: 26, color: color ?? context.colors.textPrimary),
       splashRadius: 24,
     );
   }
@@ -128,8 +130,8 @@ class OverlineLabel extends StatelessWidget {
   Widget build(BuildContext context) {
     return Text(
       text.toUpperCase(),
-      style: const TextStyle(
-        color: AppColors.textSecondary,
+      style: TextStyle(
+        color: context.colors.textSecondary,
         fontSize: 12,
         fontWeight: FontWeight.w600,
         letterSpacing: 1.6,
@@ -159,11 +161,11 @@ class SectionHeader extends StatelessWidget {
         Expanded(
           child: Text(
             title,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 21,
               fontWeight: FontWeight.w700,
               letterSpacing: -0.3,
-              color: AppColors.textPrimary,
+              color: context.colors.textPrimary,
             ),
           ),
         ),
@@ -177,8 +179,8 @@ class SectionHeader extends StatelessWidget {
             ),
             child: Text(
               actionLabel!,
-              style: const TextStyle(
-                color: AppColors.accentSoft,
+              style: TextStyle(
+                color: context.colors.accentSoft,
                 fontSize: 15,
                 fontWeight: FontWeight.w500,
               ),
@@ -209,7 +211,7 @@ class GroupCard extends StatelessWidget {
       if (i > 0) {
         rows.add(Padding(
           padding: EdgeInsets.only(left: dividerIndent, right: 16),
-          child: const Divider(height: 1, color: AppColors.divider),
+          child: Divider(height: 1, color: context.colors.divider),
         ));
       }
       rows.add(children[i]);

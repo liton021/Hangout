@@ -198,9 +198,10 @@ class _SuggestionCard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final palette = context.colors;
     return Container(
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: palette.surface,
         borderRadius: BorderRadius.circular(AppRadius.lg),
       ),
       padding: const EdgeInsets.fromLTRB(14, 18, 14, 14),
@@ -212,10 +213,10 @@ class _SuggestionCard extends ConsumerWidget {
             user.name,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.w600,
-              color: AppColors.textPrimary,
+              color: palette.textPrimary,
             ),
           ),
           const SizedBox(height: 3),
@@ -223,9 +224,9 @@ class _SuggestionCard extends ConsumerWidget {
             connected ? 'In your chats' : 'New on Hangout',
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 13.5,
-              color: AppColors.textSecondary,
+              color: palette.textSecondary,
             ),
           ),
           const Spacer(),
@@ -233,8 +234,9 @@ class _SuggestionCard extends ConsumerWidget {
             width: double.infinity,
             height: 42,
             child: Material(
-              color:
-                  connected ? AppColors.surfaceMuted : AppColors.accentSoft,
+              color: connected
+                  ? palette.surfaceMuted
+                  : palette.accentSoft,
               borderRadius: BorderRadius.circular(AppRadius.sm),
               clipBehavior: Clip.antiAlias,
               child: InkWell(
@@ -246,8 +248,8 @@ class _SuggestionCard extends ConsumerWidget {
                       fontSize: 15.5,
                       fontWeight: FontWeight.w600,
                       color: connected
-                          ? AppColors.textSecondary
-                          : AppColors.onAccentSoft,
+                          ? palette.textSecondary
+                          : palette.onAccentSoft,
                     ),
                   ),
                 ),
@@ -268,17 +270,18 @@ class _ChannelRow extends StatelessWidget {
 
   static const _tints = [
     AppColors.accent,
-    AppColors.surfaceMuted,
+    Color(0xFF64748B),
     Color(0xFF7C6CF6),
     Color(0xFF14B8A6),
   ];
 
   @override
   Widget build(BuildContext context) {
+    final palette = context.colors;
     final tint = _tints[index % _tints.length];
     return Container(
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: palette.surface,
         borderRadius: BorderRadius.circular(AppRadius.md),
       ),
       padding: const EdgeInsets.all(12),
@@ -306,10 +309,10 @@ class _ChannelRow extends StatelessWidget {
                   channel.name,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 16.5,
                     fontWeight: FontWeight.w600,
-                    color: AppColors.textPrimary,
+                    color: palette.textPrimary,
                   ),
                 ),
                 const SizedBox(height: 3),
@@ -317,9 +320,9 @@ class _ChannelRow extends StatelessWidget {
                   channel.subtitle,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 13.5,
-                    color: AppColors.textSecondary,
+                    color: palette.textSecondary,
                   ),
                 ),
               ],
@@ -327,21 +330,22 @@ class _ChannelRow extends StatelessWidget {
           ),
           const SizedBox(width: 10),
           Material(
-            color: AppColors.surfaceMuted,
+            color: palette.surfaceMuted,
             borderRadius: BorderRadius.circular(AppRadius.sm),
             clipBehavior: Clip.antiAlias,
             child: InkWell(
               onTap: () => ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(content: Text('Joining ${channel.name} is coming soon')),
               ),
-              child: const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+              child: Padding(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
                 child: Text(
                   'Join',
                   style: TextStyle(
                     fontSize: 14.5,
                     fontWeight: FontWeight.w600,
-                    color: AppColors.textPrimary,
+                    color: palette.textPrimary,
                   ),
                 ),
               ),
@@ -384,10 +388,11 @@ class _PlaceholderCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = context.colors;
     return Container(
       width: double.infinity,
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: palette.surface,
         borderRadius: BorderRadius.circular(AppRadius.md),
       ),
       padding: const EdgeInsets.all(18),
@@ -397,10 +402,10 @@ class _PlaceholderCard extends StatelessWidget {
             width: 46,
             height: 46,
             decoration: BoxDecoration(
-              color: AppColors.surfaceMuted,
+              color: palette.surfaceMuted,
               borderRadius: BorderRadius.circular(AppRadius.sm),
             ),
-            child: Icon(icon, color: AppColors.textSecondary, size: 22),
+            child: Icon(icon, color: palette.textSecondary, size: 22),
           ),
           const SizedBox(width: 14),
           Expanded(
@@ -409,19 +414,19 @@ class _PlaceholderCard extends StatelessWidget {
               children: [
                 Text(
                   title,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 15.5,
                     fontWeight: FontWeight.w600,
-                    color: AppColors.textPrimary,
+                    color: palette.textPrimary,
                   ),
                 ),
                 const SizedBox(height: 3),
                 Text(
                   subtitle,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 13.5,
                     height: 1.35,
-                    color: AppColors.textSecondary,
+                    color: palette.textSecondary,
                   ),
                 ),
               ],

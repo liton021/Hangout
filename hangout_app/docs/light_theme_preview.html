@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Hangout — Light Theme Conversion</title>
+<style>
+  :root {
+    /* Shared brand */
+    --accent: #3B82F6;
+    --accent-deep: #2563EB;
+    --periwinkle: #A9C3FB;
+    --success: #22C55E;
+    --danger: #EF4444;
+
+    /* Light theme (HangoutPalette.light) */
+    --l-canvas: #F4F5F8;
+    --l-canvas-elevated: #FFFFFF;
+    --l-surface: #FFFFFF;
+    --l-surface-alt: #EDEFF3;
+    --l-surface-muted: #E3E6ED;
+    --l-divider: #E2E5EB;
+    --l-text-1: #0F1115;
+    --l-text-2: #6B7280;
+    --l-text-3: #9AA0AB;
+    --l-accent-soft: #2563EB;
+    --l-on-accent-soft: #FFFFFF;
+    --l-accent-surface: #DCE7FE;
+
+    /* Dark theme (HangoutPalette.dark) */
+    --d-canvas: #0A0A0C;
+    --d-canvas-elevated: #101013;
+    --d-surface: #1A1A1F;
+    --d-surface-alt: #232329;
+    --d-surface-muted: #2C2C33;
+    --d-divider: #2A2A31;
+    --d-text-1: #F3F4F6;
+    --d-text-2: #9CA3AF;
+    --d-text-3: #6B7280;
+    --d-accent-soft: #A9C3FB;
+    --d-accent-surface: #16294A;
+  }
+
+  * { box-sizing: border-box; margin: 0; }
+  body {
+    font-family: -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    background: #0D0E12;
+    color: #E5E7EB;
+    padding: 48px 24px 80px;
+  }
+  .wrap { max-width: 1080px; margin: 0 auto; }
+  h1 { font-size: 30px; letter-spacing: -0.5px; }
+  .sub { color: #9CA3AF; margin-top: 8px; font-size: 15px; }
+  h2 { font-size: 19px; margin: 48px 0 16px; letter-spacing: -0.2px; }
+
+  /* ── Phone mockups ─────────────────────────────────────────── */
+  .row { display: flex; gap: 28px; flex-wrap: wrap; }
+  .phone {
+    width: 320px; flex: 0 0 auto;
+    border-radius: 26px; overflow: hidden;
+    border: 1px solid rgba(255,255,255,.09);
+    box-shadow: 0 24px 60px rgba(0,0,0,.45);
+    font-size: 12px;
+  }
+  .phone.light { background: var(--l-canvas); color: var(--l-text-1); }
+  .phone.dark  { background: var(--d-canvas); color: var(--d-text-1); }
+  .phone .label {
+    text-align: center; padding: 9px; font-weight: 700; font-size: 11px;
+    letter-spacing: 1.2px; text-transform: uppercase;
+  }
+  .phone.light .label { background: var(--l-canvas); color: var(--l-text-2); border-bottom: 1px solid var(--l-divider); }
+  .phone.dark  .label { background: var(--d-canvas); color: var(--d-text-2); border-bottom: 1px solid var(--d-divider); }
+
+  .ph-body { padding: 14px 14px 0; min-height: 430px; }
+  .ph-header { display: flex; align-items: center; gap: 10px; padding: 2px 6px 12px; }
+  .ph-av { width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 11px; }
+  .phone.light .ph-av { background: var(--l-surface-muted); color: var(--l-accent-soft); }
+  .phone.dark  .ph-av { background: var(--d-surface-muted); color: var(--d-accent-soft); }
+  .ph-title { font-size: 19px; font-weight: 800; letter-spacing: -0.4px; }
+  .phone.light .ph-title { color: var(--l-accent-soft); }
+  .phone.dark  .ph-title { color: var(--d-accent-soft); }
+  .ph-search { margin-left: auto; width: 26px; height: 26px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center; font-size: 13px; }
+  .phone.light .ph-search { color: var(--l-text-1); }
+  .phone.dark  .ph-search { color: var(--d-text-1); }
+
+  .searchbar { height: 34px; border-radius: 13px; display: flex; align-items: center;
+    padding: 0 12px; gap: 8px; font-size: 12px; margin-bottom: 14px; }
+  .phone.light .searchbar { background: var(--l-surface-alt); color: var(--l-text-2); }
+  .phone.dark  .searchbar { background: var(--d-surface-alt); color: var(--d-text-2); }
+
+  .chatrow { display: flex; gap: 12px; padding: 10px 2px; align-items: flex-start; position: relative; }
+  .chatrow + .chatrow::before { content: ''; position: absolute; top: 0; left: 54px; right: 2px; height: 1px; }
+  .phone.light .chatrow + .chatrow::before { background: var(--l-divider); }
+  .phone.dark  .chatrow + .chatrow::before { background: var(--d-divider); }
+  .cr-main { flex: 1; min-width: 0; }
+  .cr-name { font-weight: 600; font-size: 13px; display: flex; justify-content: space-between; gap: 6px; }
+  .cr-time { font-weight: 500; font-size: 10.5px; }
+  .phone.light .cr-time { color: var(--l-text-2); }
+  .phone.dark  .cr-time { color: var(--d-text-2); }
+  .cr-prev { font-size: 11.5px; margin-top: 3px; display: flex; justify-content: space-between; align-items: center; gap: 6px; }
+  .phone.light .cr-prev { color: var(--l-text-2); }
+  .phone.dark  .cr-prev { color: var(--d-text-2); }
+  .cr-prev.unread { font-weight: 500; }
+  .phone.light .cr-prev.unread { color: var(--l-text-1); }
+  .phone.dark  .cr-prev.unread { color: var(--d-text-1); }
+  .badge { background: var(--accent); color: #fff; border-radius: 99px; min-width: 17px; height: 17px;
+    font-size: 9.5px; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; padding: 0 5px; }
+
+  .ph-nav { display: flex; border-top: 1px solid transparent; padding: 8px 10px; margin-top: 14px; }
+  .phone.light .ph-nav { background: var(--l-canvas-elevated); border-color: var(--l-divider); }
+  .phone.dark  .ph-nav { background: var(--d-canvas-elevated); border-color: var(--d-divider); }
+  .nav-it { flex: 1; text-align: center; font-size: 9.5px; font-weight: 600; padding: 7px 0; border-radius: 10px; }
+  .nav-it .ic { font-size: 14px; display: block; margin-bottom: 2px; }
+  .phone.light .nav-it { color: var(--l-text-2); }
+  .phone.dark  .nav-it { color: var(--d-text-2); }
+  .nav-it.on { background: var(--accent); color: #fff; }
+
+  /* chat bubbles mockup */
+  .bub { max-width: 78%; padding: 8px 12px; font-size: 12px; line-height: 1.35; margin: 3px 0; }
+  .bub.me { margin-left: auto; background: var(--accent); color: #fff; border-radius: 18px 18px 18px 6px; }
+  .bub.them { border-radius: 18px 18px 6px 18px; }
+  .phone.light .bub.them { background: var(--l-surface); color: var(--l-text-1); }
+  .phone.dark  .bub.them { background: var(--d-surface); color: var(--d-text-1); }
+  .daylab { text-align: center; margin: 10px 0; }
+  .daylab span { font-size: 9.5px; font-weight: 600; padding: 4px 12px; border-radius: 99px; }
+  .phone.light .daylab span { background: var(--l-surface); color: var(--l-text-2); }
+  .phone.dark  .daylab span { background: var(--d-surface); color: var(--d-text-2); }
+  .composer { display: flex; gap: 8px; align-items: center; padding: 8px; }
+  .phone.light .composer { background: var(--l-canvas-elevated); border-top: 1px solid var(--l-divider); }
+  .phone.dark  .composer { background: var(--d-canvas-elevated); border-top: 1px solid var(--d-divider); }
+  .input { flex: 1; height: 34px; border-radius: 17px; display: flex; align-items: center; padding: 0 14px; font-size: 11.5px; }
+  .phone.light .input { background: var(--l-surface-alt); color: var(--l-text-2); }
+  .phone.dark  .input { background: var(--d-surface-alt); color: var(--d-text-2); }
+  .send { width: 34px; height: 34px; border-radius: 50%; background: var(--accent);
+    display: flex; align-items: center; justify-content: center; color: #fff; font-size: 14px; }
+
+  /* settings mockup */
+  .card { border-radius: 16px; overflow: hidden; }
+  .phone.light .card { background: var(--l-surface); }
+  .phone.dark  .card { background: var(--d-surface); }
+  .setrow { display: flex; align-items: center; gap: 12px; padding: 12px 14px; position: relative; }
+  .setrow + .setrow::before { content: ''; position: absolute; top: 0; left: 46px; right: 12px; height: 1px; }
+  .phone.light .setrow + .setrow::before { background: var(--l-divider); }
+  .phone.dark  .setrow + .setrow::before { background: var(--d-divider); }
+  .setrow .si { width: 22px; font-size: 14px; color: var(--accent); text-align: center; }
+  .setrow .st { flex: 1; }
+  .setrow .st b { display: block; font-size: 12.5px; font-weight: 600; }
+  .setrow .st s { text-decoration: none; font-size: 10.5px; }
+  .phone.light .setrow .st s { color: var(--l-text-2); }
+  .phone.dark  .setrow .st s { color: var(--d-text-2); }
+  .setrow .ch { font-size: 13px; }
+  .phone.light .setrow .ch { color: var(--l-text-2); }
+  .phone.dark  .setrow .ch { color: var(--d-text-2); }
+  .setrow.danger .si, .setrow.danger b { color: var(--danger); }
+  .onchip { margin: 12px auto 0; width: fit-content; padding: 6px 14px; border-radius: 99px;
+    font-size: 10.5px; font-weight: 500; display: flex; gap: 6px; align-items: center; }
+  .phone.light .onchip { background: var(--l-surface-alt); color: var(--l-text-1); }
+  .phone.dark  .onchip { background: var(--d-surface-alt); color: var(--d-text-1); }
+  .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--success); }
+
+  /* ── Conversion table ──────────────────────────────────────── */
+  table { width: 100%; border-collapse: collapse; background: #15161B; border-radius: 16px; overflow: hidden; font-size: 13px; }
+  th, td { text-align: left; padding: 11px 14px; border-bottom: 1px solid #26272E; vertical-align: middle; }
+  th { font-size: 11px; letter-spacing: 1px; text-transform: uppercase; color: #9CA3AF; background: #1B1C22; }
+  .sw { display: inline-flex; align-items: center; gap: 8px; }
+  .sw i { width: 26px; height: 26px; border-radius: 8px; border: 1px solid rgba(128,128,128,.35); display: inline-block; }
+  .token { font-weight: 600; color: #D1D5DB; font-family: 'SF Mono', Consolas, monospace; font-size: 12px; }
+  .where { color: #9CA3AF; font-size: 12px; }
+  .note { color: #9CA3AF; font-size: 13px; margin-top: 12px; line-height: 1.55; }
+  .note code { background: #232329; padding: 1px 6px; border-radius: 5px; font-size: 12px; color: #A9C3FB; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Hangout — Light Theme Conversion</h1>
+  <p class="sub">How every semantic token converts when Appearance → Light is selected. All widgets now read
+  from <code style="background:#232329;padding:1px 6px;border-radius:5px;font-size:12px;color:#A9C3FB">context.colors</code> (HangoutPalette) instead of hardcoded dark constants. Rendered side-by-side below with the real token values.</p>
+
+  <!-- ─────────── Chats tab ─────────── -->
+  <h2>Home · Chats</h2>
+  <div class="row">
+    <div class="phone dark">
+      <div class="label">Dark — unchanged</div>
+      <div class="ph-body">
+        <div class="ph-header"><div class="ph-av">YO</div><div class="ph-title">Messenger</div><div class="ph-search">🔍</div></div>
+        <div class="chatrow"><div class="ph-av" style="width:40px;height:40px">AL</div>
+          <div class="cr-main"><div class="cr-name">Alice Moreau <span class="cr-time">9:41 AM</span></div>
+          <div class="cr-prev unread">You coming tonight? <span class="badge">2</span></div></div></div>
+        <div class="chatrow"><div class="ph-av" style="width:40px;height:40px">JD</div>
+          <div class="cr-main"><div class="cr-name">John Doe <span class="cr-time">Yesterday</span></div>
+          <div class="cr-prev">Sounds good, talk tomorrow</div></div></div>
+        <div class="chatrow"><div class="ph-av" style="width:40px;height:40px">TM</div>
+          <div class="cr-main"><div class="cr-name">Team Hangout <span class="cr-time">Mon</span></div>
+          <div class="cr-prev unread">Sarah: shipped it 🎉 <span class="badge">5</span></div></div></div>
+      </div>
+      <div class="ph-nav">
+        <div class="nav-it on"><span class="ic">💬</span>Chats</div>
+        <div class="nav-it"><span class="ic">📇</span>Contacts</div>
+        <div class="nav-it"><span class="ic">🧭</span>Discovery</div>
+        <div class="nav-it"><span class="ic">⚙️</span>Settings</div>
+      </div>
+    </div>
+    <div class="phone light">
+      <div class="label">Light — converted</div>
+      <div class="ph-body">
+        <div class="ph-header"><div class="ph-av">YO</div><div class="ph-title">Messenger</div><div class="ph-search">🔍</div></div>
+        <div class="chatrow"><div class="ph-av" style="width:40px;height:40px">AL</div>
+          <div class="cr-main"><div class="cr-name">Alice Moreau <span class="cr-time">9:41 AM</span></div>
+          <div class="cr-prev unread">You coming tonight? <span class="badge">2</span></div></div></div>
+        <div class="chatrow"><div class="ph-av" style="width:40px;height:40px">JD</div>
+          <div class="cr-main"><div class="cr-name">John Doe <span class="cr-time">Yesterday</span></div>
+          <div class="cr-prev">Sounds good, talk tomorrow</div></div></div>
+        <div class="chatrow"><div class="ph-av" style="width:40px;height:40px">TM</div>
+          <div class="cr-main"><div class="cr-name">Team Hangout <span class="cr-time">Mon</span></div>
+          <div class="cr-prev unread">Sarah: shipped it 🎉 <span class="badge">5</span></div></div></div>
+      </div>
+      <div class="ph-nav">
+        <div class="nav-it on"><span class="ic">💬</span>Chats</div>
+        <div class="nav-it"><span class="ic">📇</span>Contacts</div>
+        <div class="nav-it"><span class="ic">🧭</span>Discovery</div>
+        <div class="nav-it"><span class="ic">⚙️</span>Settings</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─────────── Chat screen ─────────── -->
+  <h2>Chat</h2>
+  <div class="row">
+    <div class="phone dark">
+      <div class="label">Dark — unchanged</div>
+      <div class="ph-body">
+        <div class="daylab"><span>Today</span></div>
+        <div class="bub them">Hey! Did you see the new design?</div>
+        <div class="bub me">Just saw it — the blue pills look great 🔥</div>
+        <div class="bub me">Shipping the light theme next</div>
+        <div class="bub them">Finally 🙌</div>
+      </div>
+      <div class="composer"><div class="input">Message</div><div class="send">➤</div></div>
+    </div>
+    <div class="phone light">
+      <div class="label">Light — converted</div>
+      <div class="ph-body">
+        <div class="daylab"><span>Today</span></div>
+        <div class="bub them">Hey! Did you see the new design?</div>
+        <div class="bub me">Just saw it — the blue pills look great 🔥</div>
+        <div class="bub me">Shipping the light theme next</div>
+        <div class="bub them">Finally 🙌</div>
+      </div>
+      <div class="composer"><div class="input">Message</div><div class="send">➤</div></div>
+    </div>
+  </div>
+
+  <!-- ─────────── Settings ─────────── -->
+  <h2>Settings</h2>
+  <div class="row">
+    <div class="phone dark">
+      <div class="label">Dark — unchanged</div>
+      <div class="ph-body">
+        <div class="card" style="padding:18px;text-align:center">
+          <div class="ph-av" style="width:52px;height:52px;margin:0 auto;font-size:16px;border:2px solid var(--accent)">YO</div>
+          <div style="font-weight:700;font-size:15px;margin-top:10px">Your Name</div>
+          <div style="font-size:11px;color:var(--d-text-2);margin-top:2px">you@hangout.app</div>
+          <div class="onchip"><span class="dot"></span>Online</div>
+        </div>
+        <div class="card" style="margin-top:14px">
+          <div class="setrow" style="padding-top:13px"><span class="si">👤</span><span class="st"><b>Account</b><s>Privacy, security, change number</s></span><span class="ch">›</span></div>
+          <div class="setrow"><span class="si">🔔</span><span class="st"><b>Notifications</b><s>Message, group &amp; call tones</s></span><span class="ch">›</span></div>
+          <div class="setrow"><span class="si">🎨</span><span class="st"><b>Appearance</b><s>Light theme</s></span><span class="ch">›</span></div>
+          <div class="setrow danger" style="padding-bottom:13px"><span class="si">⏻</span><span class="st"><b>Sign out</b><s>Sign out of Hangout on this device</s></span><span class="ch">›</span></div>
+        </div>
+      </div>
+    </div>
+    <div class="phone light">
+      <div class="label">Light — converted</div>
+      <div class="ph-body">
+        <div class="card" style="padding:18px;text-align:center">
+          <div class="ph-av" style="width:52px;height:52px;margin:0 auto;font-size:16px;border:2px solid var(--accent)">YO</div>
+          <div style="font-weight:700;font-size:15px;margin-top:10px">Your Name</div>
+          <div style="font-size:11px;color:var(--l-text-2);margin-top:2px">you@hangout.app</div>
+          <div class="onchip"><span class="dot"></span>Online</div>
+        </div>
+        <div class="card" style="margin-top:14px">
+          <div class="setrow" style="padding-top:13px"><span class="si">👤</span><span class="st"><b>Account</b><s>Privacy, security, change number</s></span><span class="ch">›</span></div>
+          <div class="setrow"><span class="si">🔔</span><span class="st"><b>Notifications</b><s>Message, group &amp; call tones</s></span><span class="ch">›</span></div>
+          <div class="setrow"><span class="si">🎨</span><span class="st"><b>Appearance</b><s>Light theme</s></span><span class="ch">›</span></div>
+          <div class="setrow danger" style="padding-bottom:13px"><span class="si">⏻</span><span class="st"><b>Sign out</b><s>Sign out of Hangout on this device</s></span><span class="ch">›</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─────────── Conversion table ─────────── -->
+  <h2>Token conversion map (<code style="font-size:14px">HangoutPalette</code>)</h2>
+  <table>
+    <tr><th>Token</th><th>Dark</th><th>Light</th><th>Where it lands</th></tr>
+    <tr><td class="token">canvas</td>
+        <td><span class="sw"><i style="background:#0A0A0C"></i>#0A0A0C</span></td>
+        <td><span class="sw"><i style="background:#F4F5F8"></i>#F4F5F8</span></td>
+        <td class="where">Screen background, presence-dot rings on app bars</td></tr>
+    <tr><td class="token">canvasElevated</td>
+        <td><span class="sw"><i style="background:#101013"></i>#101013</span></td>
+        <td><span class="sw"><i style="background:#FFFFFF"></i>#FFFFFF</span></td>
+        <td class="where">Bottom nav bar, chat composer bar</td></tr>
+    <tr><td class="token">surface</td>
+        <td><span class="sw"><i style="background:#1A1A1F"></i>#1A1A1F</span></td>
+        <td><span class="sw"><i style="background:#FFFFFF"></i>#FFFFFF</span></td>
+        <td class="where">Cards, group rows, incoming bubbles, day pills, sheets, dialogs, pull-to-refresh</td></tr>
+    <tr><td class="token">surfaceAlt</td>
+        <td><span class="sw"><i style="background:#232329"></i>#232329</span></td>
+        <td><span class="sw"><i style="background:#EDEFF3"></i>#EDEFF3</span></td>
+        <td class="where">Search fields, composer input, chips, "Online" chip</td></tr>
+    <tr><td class="token">surfaceMuted</td>
+        <td><span class="sw"><i style="background:#2C2C33"></i>#2C2C33</span></td>
+        <td><span class="sw"><i style="background:#E3E6ED"></i>#E3E6ED</span></td>
+        <td class="where">Avatar placeholders, idle mic/Join/Message buttons</td></tr>
+    <tr><td class="token">divider</td>
+        <td><span class="sw"><i style="background:#2A2A31"></i>#2A2A31</span></td>
+        <td><span class="sw"><i style="background:#E2E5EB"></i>#E2E5EB</span></td>
+        <td class="where">Row hairlines, nav/composer top borders, outlined buttons</td></tr>
+    <tr><td class="token">textPrimary</td>
+        <td><span class="sw"><i style="background:#F3F4F6"></i>#F3F4F6</span></td>
+        <td><span class="sw"><i style="background:#0F1115"></i>#0F1115</span></td>
+        <td class="where">Names, titles, body text on cards & bubbles</td></tr>
+    <tr><td class="token">textSecondary</td>
+        <td><span class="sw"><i style="background:#9CA3AF"></i>#9CA3AF</span></td>
+        <td><span class="sw"><i style="background:#6B7280"></i>#6B7280</span></td>
+        <td class="where">Previews, subtitles, hints, timestamps, chevrons</td></tr>
+    <tr><td class="token">textTertiary</td>
+        <td><span class="sw"><i style="background:#6B7280"></i>#6B7280</span></td>
+        <td><span class="sw"><i style="background:#9AA0AB"></i>#9AA0AB</span></td>
+        <td class="where">Version footnote</td></tr>
+    <tr><td class="token">accentSoft</td>
+        <td><span class="sw"><i style="background:#A9C3FB"></i>#A9C3FB</span></td>
+        <td><span class="sw"><i style="background:#2563EB"></i>#2563EB</span></td>
+        <td class="where">Screen titles, A–Z letters, links, Connect button — periwinkle is swapped for a 4.5:1-contrast deep blue on light</td></tr>
+    <tr><td class="token">onAccentSoft</td>
+        <td><span class="sw"><i style="background:#12213F"></i>#12213F</span></td>
+        <td><span class="sw"><i style="background:#FFFFFF"></i>#FFFFFF</span></td>
+        <td class="where">Text drawn on top of accentSoft</td></tr>
+    <tr><td class="token">accentSurface</td>
+        <td><span class="sw"><i style="background:#16294A"></i>#16294A</span></td>
+        <td><span class="sw"><i style="background:#DCE7FE"></i>#DCE7FE</span></td>
+        <td class="where">Tinted icon tiles in action sheets</td></tr>
+    <tr><td class="token">canvasGradient</td>
+        <td><span class="sw"><i style="background:linear-gradient(180deg,#101014,#0A0A0C)"></i>#101014→#0A0A0C</span></td>
+        <td><span class="sw"><i style="background:linear-gradient(180deg,#FFFFFF,#F4F5F8)"></i>#FFFFFF→#F4F5F8</span></td>
+        <td class="where">Splash / sign-in / register backdrop</td></tr>
+  </table>
+
+  <p class="note">Unchanged on purpose — these read correctly on both canvases:
+  <code>accent #3B82F6</code> (nav pill, send, badges, unread counters), <code>danger</code>,
+  <code>success</code>, the brand gradient (buttons, logo, incoming-call screen) and white-on-accent text/icons.
+  The three call screens (audio / video / incoming) intentionally stay dark: they render full-bleed
+  gradient or black video surfaces with white controls in either theme.</p>
+</div>
+</body>
+</html>

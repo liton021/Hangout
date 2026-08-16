@@ -8,15 +8,14 @@ class SplashScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final dark = Theme.of(context).brightness == Brightness.dark;
+    final palette = context.colors;
+    final dark = context.isDark;
     return Scaffold(
       body: Container(
-        decoration: BoxDecoration(
-          gradient: dark ? AppColors.canvasGradient : AppColors.lightCanvasGradient,
-        ),
+        decoration: BoxDecoration(gradient: palette.canvasGradient),
         child: Stack(
           children: [
-            // Soft aqua "blobs" — flat, colorful accents (report §3).
+            // Soft accent "blobs" — flat, colorful accents (report §3).
             Positioned(
               top: -90,
               right: -70,
@@ -54,7 +53,7 @@ class SplashScreen extends StatelessWidget {
                   Text(
                     'Closer, wherever you are.',
                     style: TextStyle(
-                      color: dark ? AppColors.textSecondary : AppColors.lightTextSecondary,
+                      color: palette.textSecondary,
                       fontSize: 15.5,
                       fontWeight: FontWeight.w500,
                     ),

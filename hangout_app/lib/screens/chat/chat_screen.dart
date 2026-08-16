@@ -102,6 +102,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       ContactActions.startCall(context, ref, widget.peer, type);
 
   void _showProfileSheet() {
+    final palette = context.colors;
     showModalBottomSheet<void>(
       context: context,
       builder: (sheetContext) => SafeArea(
@@ -114,25 +115,25 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                 user: widget.peer,
                 radius: 44,
                 ringColor: AppColors.accent,
-                presenceBorderColor: AppColors.surface,
+                presenceBorderColor: palette.surface,
                 showPresence: true,
               ),
               const SizedBox(height: 16),
               Text(
                 widget.peer.name,
                 textAlign: TextAlign.center,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 21,
                   fontWeight: FontWeight.w700,
-                  color: AppColors.textPrimary,
+                  color: palette.textPrimary,
                 ),
               ),
               const SizedBox(height: 4),
               Text(
                 widget.peer.email.isEmpty ? 'Hangout user' : widget.peer.email,
                 textAlign: TextAlign.center,
-                style: const TextStyle(
-                  color: AppColors.textSecondary,
+                style: TextStyle(
+                  color: palette.textSecondary,
                   fontSize: 14.5,
                 ),
               ),
@@ -172,6 +173,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final palette = context.colors;
     final messages = ref.watch(messagesProvider(widget.chatId));
     final me = ref.watch(authStateProvider).value;
 
@@ -194,7 +196,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                 user: widget.peer,
                 radius: 20,
                 showPresence: true,
-                presenceBorderColor: AppColors.canvas,
+                presenceBorderColor: palette.canvas,
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -206,10 +208,10 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                       widget.peer.name,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 17,
                         fontWeight: FontWeight.w600,
-                        color: AppColors.textPrimary,
+                        color: palette.textPrimary,
                       ),
                     ),
                     const SizedBox(height: 2),
@@ -381,6 +383,7 @@ class _ComposerState extends State<_Composer> {
   }
 
   void _showAttachSheet() {
+    final palette = context.colors;
     showModalBottomSheet<void>(
       context: context,
       builder: (sheetContext) => SafeArea(
@@ -390,12 +393,12 @@ class _ComposerState extends State<_Composer> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
+              Text(
                 'Add to chat',
                 style: TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.w700,
-                  color: AppColors.textPrimary,
+                  color: palette.textPrimary,
                 ),
               ),
               const SizedBox(height: 12),
@@ -438,10 +441,11 @@ class _ComposerState extends State<_Composer> {
 
   @override
   Widget build(BuildContext context) {
+    final palette = context.colors;
     return Container(
-      decoration: const BoxDecoration(
-        color: AppColors.canvasElevated,
-        border: Border(top: BorderSide(color: AppColors.divider, width: 1)),
+      decoration: BoxDecoration(
+        color: palette.canvasElevated,
+        border: Border(top: BorderSide(color: palette.divider, width: 1)),
       ),
       child: SafeArea(
         top: false,
@@ -472,15 +476,15 @@ class _ComposerState extends State<_Composer> {
                 children: [
                   IconButton(
                     tooltip: 'Attach',
-                    icon: const Icon(Icons.add_circle_outline_rounded,
-                        color: AppColors.textSecondary),
+                    icon: Icon(Icons.add_circle_outline_rounded,
+                        color: palette.textSecondary),
                     onPressed: _showAttachSheet,
                   ),
                   Expanded(
                     child: Container(
                       constraints: const BoxConstraints(maxHeight: 120),
                       decoration: BoxDecoration(
-                        color: AppColors.surface,
+                        color: palette.surfaceAlt,
                         borderRadius: BorderRadius.circular(AppRadius.xl),
                       ),
                       child: Row(
@@ -492,9 +496,9 @@ class _ComposerState extends State<_Composer> {
                               minLines: 1,
                               maxLines: 5,
                               textCapitalization: TextCapitalization.sentences,
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontSize: 16,
-                                color: AppColors.textPrimary,
+                                color: palette.textPrimary,
                               ),
                               decoration: const InputDecoration(
                                 hintText: 'Message',
@@ -513,7 +517,7 @@ class _ComposerState extends State<_Composer> {
                               _emojiOpen
                                   ? Icons.keyboard_rounded
                                   : Icons.emoji_emotions_outlined,
-                              color: AppColors.textSecondary,
+                              color: palette.textSecondary,
                               size: 22,
                             ),
                             onPressed: () =>
@@ -531,7 +535,7 @@ class _ComposerState extends State<_Composer> {
                       return Material(
                         color: active
                             ? AppColors.accent
-                            : AppColors.surfaceMuted,
+                            : palette.surfaceMuted,
                         shape: const CircleBorder(),
                         child: InkWell(
                           customBorder: const CircleBorder(),
@@ -555,7 +559,7 @@ class _ComposerState extends State<_Composer> {
                                         : Icons.mic_rounded,
                                     color: active
                                         ? Colors.white
-                                        : AppColors.textSecondary,
+                                        : palette.textSecondary,
                                     size: active ? 21 : 22,
                                   ),
                           ),
@@ -586,26 +590,26 @@ class _AttachOption extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = context.colors;
     return ListTile(
       contentPadding: EdgeInsets.zero,
       leading: Container(
         width: 44,
         height: 44,
         decoration: BoxDecoration(
-          color: AppColors.accentSurface,
+          color: palette.accentSurface,
           borderRadius: BorderRadius.circular(AppRadius.sm),
         ),
-        child: Icon(icon, color: AppColors.accentSoft, size: 21),
+        child: Icon(icon, color: palette.accentSoft, size: 21),
       ),
       title: Text(
         label,
-        style: const TextStyle(
+        style: TextStyle(
           fontWeight: FontWeight.w600,
-          color: AppColors.textPrimary,
+          color: palette.textPrimary,
         ),
       ),
-      trailing: const Icon(Icons.chevron_right_rounded,
-          color: AppColors.textSecondary),
+      trailing: Icon(Icons.chevron_right_rounded, color: palette.textSecondary),
       onTap: onTap,
     );
   }
@@ -631,6 +635,7 @@ class _MessageBubble extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = context.colors;
     const big = Radius.circular(20);
     const small = Radius.circular(7);
 
@@ -645,7 +650,7 @@ class _MessageBubble extends StatelessWidget {
         constraints:
             BoxConstraints(maxWidth: MediaQuery.sizeOf(context).width * .78),
         decoration: BoxDecoration(
-          color: mine ? AppColors.accent : AppColors.surface,
+          color: mine ? AppColors.accent : palette.surface,
           borderRadius: BorderRadius.only(
             topLeft: mine ? big : (startsGroup ? big : small),
             topRight: mine ? (startsGroup ? big : small) : big,
@@ -662,7 +667,7 @@ class _MessageBubble extends StatelessWidget {
             Text(
               message.text,
               style: TextStyle(
-                color: mine ? Colors.white : AppColors.textPrimary,
+                color: mine ? Colors.white : palette.textPrimary,
                 fontSize: 15.5,
                 height: 1.35,
               ),
@@ -674,11 +679,11 @@ class _MessageBubble extends StatelessWidget {
                 children: [
                   Text(
                     DateFormat.Hm().format(message.sentAt.toLocal()),
-                    style: TextStyle(
-                      fontSize: 10.5,
-                      fontWeight: FontWeight.w500,
-                      color: mine ? Colors.white70 : AppColors.textSecondary,
-                    ),
+                      style: TextStyle(
+                        fontSize: 10.5,
+                        fontWeight: FontWeight.w500,
+                        color: mine ? Colors.white70 : palette.textSecondary,
+                      ),
                   ),
                   if (mine) ...[
                     const SizedBox(width: 4),
@@ -736,13 +741,13 @@ class _DayLabel extends StatelessWidget {
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
           decoration: BoxDecoration(
-            color: AppColors.surface,
+            color: context.colors.surface,
             borderRadius: BorderRadius.circular(AppRadius.pill),
           ),
           child: Text(
             label,
-            style: const TextStyle(
-              color: AppColors.textSecondary,
+            style: TextStyle(
+              color: context.colors.textSecondary,
               fontSize: 11.5,
               fontWeight: FontWeight.w600,
               letterSpacing: 0.3,
@@ -787,10 +792,10 @@ class _ProfileAction extends StatelessWidget {
             const SizedBox(height: 8),
             Text(
               label,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 12.5,
                 fontWeight: FontWeight.w600,
-                color: AppColors.textSecondary,
+                color: context.colors.textSecondary,
               ),
             ),
           ],

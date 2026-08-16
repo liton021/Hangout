@@ -1,17 +1,24 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-/// Hangout visual language — "Midnight Messenger".
+/// Hangout visual language — "Midnight Messenger" (dark) with a faithful
+/// light counterpart.
 ///
 /// Matches the approved UI designs: a near-black canvas, softly rounded
 /// charcoal cards, a vivid blue accent for primary actions and a lighter
-/// periwinkle for headings/links.
+/// periwinkle for headings/links. The light theme mirrors the same ramps
+/// onto a soft gray canvas with white surfaces and a deeper, readable blue
+/// wherever the design leans on periwinkle.
 ///
-///  * Canvas    : #0A0A0C   (app background)
-///  * Surface   : #1A1A1F   (cards, sheets, rows)
+/// Widgets should never reference the raw dark constants for surfaces or
+/// text — always resolve them through [HangoutPalette] (`context.colors`)
+/// so both themes render correctly.
+///
+///  * Canvas    : #0A0A0C dark · #F4F5F8 light (app background)
+///  * Surface   : #1A1A1F dark · #FFFFFF light (cards, sheets, rows)
 ///  * Accent    : #3B82F6   (active nav pill, FAB, send, badges)
-///  * Periwinkle: #A9C3FB   (screen titles, section letters, links)
-///  * Text      : #F3F4F6 primary · #9CA3AF secondary
+///  * Periwinkle: #A9C3FB dark-only (light theme uses deep blue #2563EB)
+///  * Text      : #F3F4F6/#0F1115 primary · #9CA3AF/#6B7280 secondary
 ///  * Radii     : sm 12 · md 16 · lg 20 · xl 28 · full (pills, avatars)
 class AppColors {
   AppColors._();
@@ -40,13 +47,16 @@ class AppColors {
   static const Color success = Color(0xFF22C55E); // presence / online
   static const Color danger = Color(0xFFEF4444); // end call / decline / error
 
-  // ── Light-mode surfaces (fallback; the design is dark-first) ─────────────
+  // ── Light canvas & surfaces ──────────────────────────────────────────────
   static const Color lightCanvas = Color(0xFFF4F5F8);
   static const Color lightSurface = Color(0xFFFFFFFF);
   static const Color lightSurfaceAlt = Color(0xFFEDEFF3);
+  static const Color lightSurfaceMuted = Color(0xFFE3E6ED); // idle buttons
   static const Color lightDivider = Color(0xFFE2E5EB);
   static const Color lightTextPrimary = Color(0xFF0F1115);
   static const Color lightTextSecondary = Color(0xFF6B7280);
+  static const Color lightTextTertiary = Color(0xFF9AA0AB);
+  static const Color lightAccentSurface = Color(0xFFDCE7FE); // tinted container
 
   // ── Gradients ────────────────────────────────────────────────────────────
   /// Brand accent: blue -> deep blue (135deg) for FABs, send, avatars.
@@ -116,6 +126,147 @@ class AppRadius {
   static const double pill = 999;
 }
 
+/// Theme-aware semantic palette for surfaces, text and tinted accents.
+///
+/// Everything that flips between the dark and light designs lives here.
+/// Resolve it once per build with `context.colors` — brand constants that
+/// look identical on both canvases (`AppColors.accent`, `success`, `danger`,
+/// `brandGradient`…) can still be used directly.
+class HangoutPalette extends ThemeExtension<HangoutPalette> {
+  const HangoutPalette({
+    required this.canvas,
+    required this.canvasElevated,
+    required this.surface,
+    required this.surfaceAlt,
+    required this.surfaceMuted,
+    required this.divider,
+    required this.textPrimary,
+    required this.textSecondary,
+    required this.textTertiary,
+    required this.accentSoft,
+    required this.onAccentSoft,
+    required this.accentSurface,
+    required this.canvasGradient,
+  });
+
+  final Color canvas; // screen background
+  final Color canvasElevated; // nav bar, composer bar
+  final Color surface; // cards, list groups, incoming bubbles
+  final Color surfaceAlt; // search field, chips, inset fill
+  final Color surfaceMuted; // idle buttons, avatar placeholders
+  final Color divider; // hairlines
+  final Color textPrimary;
+  final Color textSecondary;
+  final Color textTertiary;
+
+  /// Periwinkle headlines/links in dark; a deeper readable blue (#2563EB)
+  /// in light, where periwinkle would wash out on the bright canvas.
+  final Color accentSoft;
+
+  /// Content drawn on top of [accentSoft] (e.g. the Connect button label).
+  final Color onAccentSoft;
+
+  /// Softly tinted blue container behind accent icons in sheets.
+  final Color accentSurface;
+
+  /// Full-screen backdrop behind splash / auth screens.
+  final Gradient canvasGradient;
+
+  static const HangoutPalette dark = HangoutPalette(
+    canvas: AppColors.canvas,
+    canvasElevated: AppColors.canvasElevated,
+    surface: AppColors.surface,
+    surfaceAlt: AppColors.surfaceAlt,
+    surfaceMuted: AppColors.surfaceMuted,
+    divider: AppColors.divider,
+    textPrimary: AppColors.textPrimary,
+    textSecondary: AppColors.textSecondary,
+    textTertiary: AppColors.textTertiary,
+    accentSoft: AppColors.accentSoft,
+    onAccentSoft: AppColors.onAccentSoft,
+    accentSurface: AppColors.accentSurface,
+    canvasGradient: AppColors.canvasGradient,
+  );
+
+  static const HangoutPalette light = HangoutPalette(
+    canvas: AppColors.lightCanvas,
+    canvasElevated: AppColors.lightSurface,
+    surface: AppColors.lightSurface,
+    surfaceAlt: AppColors.lightSurfaceAlt,
+    surfaceMuted: AppColors.lightSurfaceMuted,
+    divider: AppColors.lightDivider,
+    textPrimary: AppColors.lightTextPrimary,
+    textSecondary: AppColors.lightTextSecondary,
+    textTertiary: AppColors.lightTextTertiary,
+    accentSoft: AppColors.accentDeep,
+    onAccentSoft: Colors.white,
+    accentSurface: AppColors.lightAccentSurface,
+    canvasGradient: AppColors.lightCanvasGradient,
+  );
+
+  @override
+  HangoutPalette copyWith({
+    Color? canvas,
+    Color? canvasElevated,
+    Color? surface,
+    Color? surfaceAlt,
+    Color? surfaceMuted,
+    Color? divider,
+    Color? textPrimary,
+    Color? textSecondary,
+    Color? textTertiary,
+    Color? accentSoft,
+    Color? onAccentSoft,
+    Color? accentSurface,
+    Gradient? canvasGradient,
+  }) {
+    return HangoutPalette(
+      canvas: canvas ?? this.canvas,
+      canvasElevated: canvasElevated ?? this.canvasElevated,
+      surface: surface ?? this.surface,
+      surfaceAlt: surfaceAlt ?? this.surfaceAlt,
+      surfaceMuted: surfaceMuted ?? this.surfaceMuted,
+      divider: divider ?? this.divider,
+      textPrimary: textPrimary ?? this.textPrimary,
+      textSecondary: textSecondary ?? this.textSecondary,
+      textTertiary: textTertiary ?? this.textTertiary,
+      accentSoft: accentSoft ?? this.accentSoft,
+      onAccentSoft: onAccentSoft ?? this.onAccentSoft,
+      accentSurface: accentSurface ?? this.accentSurface,
+      canvasGradient: canvasGradient ?? this.canvasGradient,
+    );
+  }
+
+  @override
+  HangoutPalette lerp(ThemeExtension<HangoutPalette>? other, double t) {
+    if (other is! HangoutPalette) return this;
+    return HangoutPalette(
+      canvas: Color.lerp(canvas, other.canvas, t)!,
+      canvasElevated: Color.lerp(canvasElevated, other.canvasElevated, t)!,
+      surface: Color.lerp(surface, other.surface, t)!,
+      surfaceAlt: Color.lerp(surfaceAlt, other.surfaceAlt, t)!,
+      surfaceMuted: Color.lerp(surfaceMuted, other.surfaceMuted, t)!,
+      divider: Color.lerp(divider, other.divider, t)!,
+      textPrimary: Color.lerp(textPrimary, other.textPrimary, t)!,
+      textSecondary: Color.lerp(textSecondary, other.textSecondary, t)!,
+      textTertiary: Color.lerp(textTertiary, other.textTertiary, t)!,
+      accentSoft: Color.lerp(accentSoft, other.accentSoft, t)!,
+      onAccentSoft: Color.lerp(onAccentSoft, other.onAccentSoft, t)!,
+      accentSurface: Color.lerp(accentSurface, other.accentSurface, t)!,
+      canvasGradient:
+          Gradient.lerp(canvasGradient, other.canvasGradient, t)!,
+    );
+  }
+}
+
+/// Convenient, rebuild-safe access to the active [HangoutPalette].
+extension HangoutThemeX on BuildContext {
+  HangoutPalette get colors =>
+      Theme.of(this).extension<HangoutPalette>() ?? HangoutPalette.dark;
+
+  bool get isDark => Theme.of(this).brightness == Brightness.dark;
+}
+
 class AppTheme {
   AppTheme._();
 
@@ -152,8 +303,8 @@ class AppTheme {
       surfaceContainerLow: dark ? AppColors.canvasElevated : Colors.white,
       surfaceContainer: surface,
       surfaceContainerHigh: surfaceAlt,
-      surfaceContainerHighest: dark ? AppColors.surfaceMuted : surfaceAlt,
-      primaryContainer: dark ? AppColors.accentSurface : const Color(0xFFDCE7FE),
+      surfaceContainerHighest: dark ? AppColors.surfaceMuted : AppColors.lightSurfaceMuted,
+      primaryContainer: dark ? AppColors.accentSurface : AppColors.lightAccentSurface,
       onPrimaryContainer: dark ? AppColors.accentSoft : AppColors.accentDeep,
       secondaryContainer: dark ? AppColors.surfaceAlt : surfaceAlt,
       onSecondaryContainer: textPrimary,
@@ -225,6 +376,9 @@ class AppTheme {
       useMaterial3: true,
       brightness: brightness,
       colorScheme: scheme,
+      extensions: <ThemeExtension<dynamic>>[
+        dark ? HangoutPalette.dark : HangoutPalette.light,
+      ],
       scaffoldBackgroundColor: canvas,
       canvasColor: canvas,
       splashFactory: InkSparkle.splashFactory,
@@ -295,7 +449,9 @@ class AppTheme {
       ),
       textButtonTheme: TextButtonThemeData(
         style: TextButton.styleFrom(
-          foregroundColor: AppColors.accentSoft,
+          // Periwinkle reads well on charcoal; on the light canvas we need
+          // the deeper blue to stay legible.
+          foregroundColor: dark ? AppColors.accentSoft : AppColors.accentDeep,
           textStyle: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
         ),
       ),
@@ -384,7 +540,8 @@ class AppTheme {
           borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.xl)),
         ),
         showDragHandle: true,
-        dragHandleColor: AppColors.surfaceMuted,
+        dragHandleColor:
+            dark ? AppColors.surfaceMuted : const Color(0xFFC9CFD9),
       ),
       dialogTheme: DialogTheme(
         backgroundColor: surface,
@@ -402,10 +559,13 @@ class AppTheme {
       ),
       tooltipTheme: TooltipThemeData(
         decoration: BoxDecoration(
-          color: AppColors.surfaceMuted,
+          color: dark ? AppColors.surfaceMuted : const Color(0xFF1F2430),
           borderRadius: BorderRadius.circular(AppRadius.sm),
         ),
-        textStyle: const TextStyle(color: AppColors.textPrimary, fontSize: 12),
+        textStyle: TextStyle(
+          color: dark ? AppColors.textPrimary : Colors.white,
+          fontSize: 12,
+        ),
       ),
       pageTransitionsTheme: const PageTransitionsTheme(builders: {
         TargetPlatform.android: PredictiveBackPageTransitionsBuilder(),

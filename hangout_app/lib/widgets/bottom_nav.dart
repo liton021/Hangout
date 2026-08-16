@@ -24,10 +24,11 @@ class HangoutNavBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = context.colors;
     return Container(
-      decoration: const BoxDecoration(
-        color: AppColors.canvasElevated,
-        border: Border(top: BorderSide(color: AppColors.divider, width: 1)),
+      decoration: BoxDecoration(
+        color: palette.canvasElevated,
+        border: Border(top: BorderSide(color: palette.divider, width: 1)),
       ),
       child: SafeArea(
         top: false,
@@ -72,7 +73,8 @@ class _NavItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final foreground = selected ? Colors.white : AppColors.textSecondary;
+    final foreground =
+        selected ? Colors.white : context.colors.textSecondary;
 
     return Semantics(
       selected: selected,

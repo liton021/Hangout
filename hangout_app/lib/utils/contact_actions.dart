@@ -68,7 +68,9 @@ class ContactActions {
   ) {
     showModalBottomSheet<void>(
       context: context,
-      builder: (sheetContext) => SafeArea(
+      builder: (sheetContext) {
+        final palette = sheetContext.colors;
+        return SafeArea(
         child: Padding(
           padding: const EdgeInsets.fromLTRB(20, 4, 20, 20),
           child: Column(
@@ -86,10 +88,10 @@ class ContactActions {
                           user.name,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.w700,
-                            color: AppColors.textPrimary,
+                            color: palette.textPrimary,
                           ),
                         ),
                         if (user.email.isNotEmpty)
@@ -97,8 +99,8 @@ class ContactActions {
                             user.email,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              color: AppColors.textSecondary,
+                            style: TextStyle(
+                              color: palette.textSecondary,
                               fontSize: 14,
                             ),
                           ),
@@ -135,7 +137,8 @@ class ContactActions {
             ],
           ),
         ),
-      ),
+        );
+      },
     );
   }
 }
@@ -153,27 +156,27 @@ class _SheetAction extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = context.colors;
     return ListTile(
       contentPadding: EdgeInsets.zero,
       leading: Container(
         width: 44,
         height: 44,
         decoration: BoxDecoration(
-          color: AppColors.accentSurface,
+          color: palette.accentSurface,
           borderRadius: BorderRadius.circular(AppRadius.sm),
         ),
-        child: Icon(icon, color: AppColors.accentSoft, size: 21),
+        child: Icon(icon, color: palette.accentSoft, size: 21),
       ),
       title: Text(
         label,
-        style: const TextStyle(
+        style: TextStyle(
           fontWeight: FontWeight.w600,
           fontSize: 16,
-          color: AppColors.textPrimary,
+          color: palette.textPrimary,
         ),
       ),
-      trailing: const Icon(Icons.chevron_right_rounded,
-          color: AppColors.textSecondary),
+      trailing: Icon(Icons.chevron_right_rounded, color: palette.textSecondary),
       onTap: onTap,
     );
   }

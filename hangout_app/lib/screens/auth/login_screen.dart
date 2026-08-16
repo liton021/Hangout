@@ -63,13 +63,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    final dark = Theme.of(context).brightness == Brightness.dark;
+    final palette = context.colors;
+    final dark = context.isDark;
     return Scaffold(
       body: Container(
-        decoration: BoxDecoration(
-          gradient:
-              dark ? AppColors.canvasGradient : AppColors.lightCanvasGradient,
-        ),
+        decoration: BoxDecoration(gradient: palette.canvasGradient),
         child: Stack(
           children: [
             // Flat, colorful accents (report §3).
@@ -122,7 +120,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           Text(
                             'Sign in and pick up where you left off.',
                             style: TextStyle(
-                              color: dark ? AppColors.textSecondary : AppColors.lightTextSecondary,
+                              color: palette.textSecondary,
                               fontSize: 16,
                               fontWeight: FontWeight.w500,
                             ),
@@ -188,9 +186,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
                               Text('New to Hangout?',
-                                  style: TextStyle(
-                                    color: dark ? AppColors.textSecondary : AppColors.lightTextSecondary,
-                                  )),
+                                  style: TextStyle(color: palette.textSecondary)),
                               TextButton(
                                 onPressed: () => Navigator.of(context).push(
                                   MaterialPageRoute(builder: (_) => const RegisterScreen()),

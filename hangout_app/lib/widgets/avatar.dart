@@ -41,9 +41,10 @@ class UserAvatar extends StatelessWidget {
             ? Image.network(
                 url!,
                 fit: BoxFit.cover,
-                errorBuilder: (_, __, ___) => _initials(diameter),
+                errorBuilder: (_, __, ___) =>
+                    _initials(diameter, context.colors),
               )
-            : _initials(diameter),
+            : _initials(diameter, context.colors),
       ),
     );
 
@@ -77,19 +78,19 @@ class UserAvatar extends StatelessWidget {
     );
   }
 
-  Widget _initials(double diameter) {
+  Widget _initials(double diameter, HangoutPalette colors) {
     return Container(
       width: diameter,
       height: diameter,
-      decoration: const BoxDecoration(
-        color: AppColors.surfaceMuted,
+      decoration: BoxDecoration(
+        color: colors.surfaceMuted,
         shape: BoxShape.circle,
       ),
       alignment: Alignment.center,
       child: Text(
         user.initials,
         style: TextStyle(
-          color: AppColors.accentSoft,
+          color: colors.accentSoft,
           fontWeight: FontWeight.w600,
           fontSize: radius * 0.8,
           letterSpacing: 0.2,
@@ -106,23 +107,34 @@ class IconAvatar extends StatelessWidget {
     super.key,
     required this.icon,
     this.radius = 24,
-    this.background = AppColors.surfaceMuted,
-    this.foreground = AppColors.textSecondary,
+    this.background,
+    this.foreground,
   });
 
   final IconData icon;
   final double radius;
-  final Color background;
-  final Color foreground;
+
+  /// Defaults come from the ambient palette ([HangoutPalette.surfaceMuted] /
+  /// [HangoutPalette.textSecondary]) so they follow the active theme.
+  final Color? background;
+  final Color? foreground;
 
   @override
   Widget build(BuildContext context) {
+    final palette = context.colors;
     return Container(
       width: radius * 2,
       height: radius * 2,
-      decoration: BoxDecoration(color: background, shape: BoxShape.circle),
+      decoration: BoxDecoration(
+        color: background ?? palette.surfaceMuted,
+        shape: BoxShape.circle,
+      ),
       alignment: Alignment.center,
-      child: Icon(icon, size: radius * 0.95, color: foreground),
+      child: Icon(
+        icon,
+        size: radius * 0.95,
+        color: foreground ?? palette.textSecondary,
+      ),
     );
   }
 }

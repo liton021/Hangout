@@ -116,14 +116,14 @@ class _NewChatSheetState extends ConsumerState<_NewChatSheet> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Padding(
-              padding: EdgeInsets.fromLTRB(20, 2, 20, 12),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 2, 20, 12),
               child: Text(
                 'New chat',
                 style: TextStyle(
                   fontSize: 21,
                   fontWeight: FontWeight.w700,
-                  color: AppColors.textPrimary,
+                  color: context.colors.textPrimary,
                 ),
               ),
             ),
@@ -146,7 +146,7 @@ class _NewChatSheetState extends ConsumerState<_NewChatSheet> {
                   child: Text(
                     'Couldn’t load people: $e',
                     textAlign: TextAlign.center,
-                    style: const TextStyle(color: AppColors.textSecondary),
+                    style: TextStyle(color: context.colors.textSecondary),
                   ),
                 ),
                 data: (list) {
@@ -160,13 +160,13 @@ class _NewChatSheetState extends ConsumerState<_NewChatSheet> {
                           .toList();
 
                   if (filtered.isEmpty) {
-                    return const Padding(
-                      padding: EdgeInsets.fromLTRB(24, 16, 24, 40),
+                    return Padding(
+                      padding: const EdgeInsets.fromLTRB(24, 16, 24, 40),
                       child: Text(
                         'No one to show yet — invite a friend to Hangout and '
                         'they’ll appear here.',
                         textAlign: TextAlign.center,
-                        style: TextStyle(color: AppColors.textSecondary),
+                        style: TextStyle(color: context.colors.textSecondary),
                       ),
                     );
                   }
@@ -197,6 +197,7 @@ class _NewChatRow extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final palette = context.colors;
     return ListTile(
       contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
       leading: UserAvatar(user: user, radius: 24),
@@ -204,20 +205,19 @@ class _NewChatRow extends ConsumerWidget {
         user.name,
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
-        style: const TextStyle(
+        style: TextStyle(
           fontSize: 16.5,
           fontWeight: FontWeight.w600,
-          color: AppColors.textPrimary,
+          color: palette.textPrimary,
         ),
       ),
       subtitle: Text(
         user.email.isEmpty ? 'On Hangout' : user.email,
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
-        style: const TextStyle(color: AppColors.textSecondary),
+        style: TextStyle(color: palette.textSecondary),
       ),
-      trailing: const Icon(Icons.chevron_right_rounded,
-          color: AppColors.textSecondary),
+      trailing: Icon(Icons.chevron_right_rounded, color: palette.textSecondary),
       onTap: () {
         Navigator.of(context).pop();
         ContactActions.openChat(context, ref, user);

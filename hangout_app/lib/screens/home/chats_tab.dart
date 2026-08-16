@@ -118,15 +118,15 @@ class _ChatsTabState extends ConsumerState<ChatsTab> {
 
               return RefreshIndicator(
                 color: AppColors.accent,
-                backgroundColor: AppColors.surface,
+                backgroundColor: context.colors.surface,
                 onRefresh: () async => ref.invalidate(chatsProvider),
                 child: ListView.separated(
                   physics: const AlwaysScrollableScrollPhysics(),
                   padding: const EdgeInsets.only(top: 6, bottom: 24),
                   itemCount: filtered.length,
-                  separatorBuilder: (_, __) => const Padding(
-                    padding: EdgeInsets.only(left: 84, right: 20),
-                    child: Divider(height: 1, color: AppColors.divider),
+                  separatorBuilder: (_, __) => Padding(
+                    padding: const EdgeInsets.only(left: 84, right: 20),
+                    child: Divider(height: 1, color: context.colors.divider),
                   ),
                   itemBuilder: (context, i) {
                     final chat = filtered[i];
@@ -180,6 +180,7 @@ class ChatRow extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final palette = context.colors;
     final unread = ref.watch(unreadCountProvider(chat.chatId)).value ?? 0;
     final hasUnread = unread > 0;
     final time = chat.lastMessageAt != null
@@ -210,11 +211,11 @@ class ChatRow extends ConsumerWidget {
                           peer.name,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 17.5,
                             fontWeight: FontWeight.w600,
                             letterSpacing: -0.2,
-                            color: AppColors.textPrimary,
+                            color: palette.textPrimary,
                           ),
                         ),
                       ),
@@ -226,7 +227,7 @@ class ChatRow extends ConsumerWidget {
                           fontWeight: FontWeight.w500,
                           color: hasUnread
                               ? AppColors.accent
-                              : AppColors.textSecondary,
+                              : palette.textSecondary,
                         ),
                       ),
                     ],
@@ -243,8 +244,8 @@ class ChatRow extends ConsumerWidget {
                             fontSize: 15,
                             height: 1.2,
                             color: hasUnread
-                                ? AppColors.textPrimary
-                                : AppColors.textSecondary,
+                                ? palette.textPrimary
+                                : palette.textSecondary,
                             fontWeight:
                                 hasUnread ? FontWeight.w500 : FontWeight.w400,
                           ),

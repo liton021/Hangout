@@ -127,9 +127,9 @@ class _CallsScreenState extends ConsumerState<CallsScreen> {
       physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.only(top: 6, bottom: 28),
       itemCount: calls.length,
-      separatorBuilder: (_, __) => const Padding(
-        padding: EdgeInsets.only(left: 84, right: 20),
-        child: Divider(height: 1, color: AppColors.divider),
+      separatorBuilder: (_, __) => Padding(
+        padding: const EdgeInsets.only(left: 84, right: 20),
+        child: Divider(height: 1, color: context.colors.divider),
       ),
       itemBuilder: (context, i) {
         final call = calls[i];
@@ -170,6 +170,7 @@ class _CallRow extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final palette = context.colors;
     final (icon, color) = missed
         ? (Icons.call_missed_rounded, AppColors.danger)
         : outgoing
@@ -207,7 +208,7 @@ class _CallRow extends ConsumerWidget {
                     style: TextStyle(
                       fontSize: 17,
                       fontWeight: FontWeight.w600,
-                      color: missed ? AppColors.danger : AppColors.textPrimary,
+                      color: missed ? AppColors.danger : palette.textPrimary,
                     ),
                   ),
                   const SizedBox(height: 4),
@@ -221,9 +222,9 @@ class _CallRow extends ConsumerWidget {
                           '${_formatTime(call.createdAt.toLocal())}',
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 14,
-                            color: AppColors.textSecondary,
+                            color: palette.textSecondary,
                           ),
                         ),
                       ),
