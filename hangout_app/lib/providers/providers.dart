@@ -80,7 +80,11 @@ final chatServiceProvider = Provider<ChatService>((ref) {
 });
 
 final pushServiceProvider = Provider<PushService>((ref) {
-  return PushService(ref.watch(messagingProvider));
+  return PushService(
+    ref.watch(messagingProvider),
+    ref.watch(firestoreProvider),
+    ref.watch(firebaseAuthProvider),
+  );
 });
 
 // ---------------------------------------------------------------------------

@@ -28,6 +28,10 @@ dependencies:
   uuid: ^4.4.2
   shared_preferences: ^2.3.2
 
+  # Push notifications — native incoming call UI + local notifications
+  flutter_callkit_incoming: ^3.1.5
+  flutter_local_notifications: ^17.0.0
+
   # Vector icons
   cupertino_icons: ^1.0.8
 

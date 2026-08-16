@@ -48,6 +48,16 @@
             </intent-filter>
         </activity>
 
+        <!-- ConnectionService for native incoming call UI (Android) -->
+        <service
+            android:name="io.wazo.callkeep.VoiceConnectionService"
+            android:foregroundServiceType="phoneCall"
+            android:exported="false" />
+        <service
+            android:name="io.wazo.callkeep.RingingService"
+            android:foregroundServiceType="phoneCall"
+            android:exported="false" />
+
         <!-- Firebase Cloud Messaging default notification channel + icon -->
         <meta-data
             android:name="com.google.firebase.messaging.default_notification_channel_id"
