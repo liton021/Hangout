@@ -12,7 +12,7 @@ class SplashScreen extends StatelessWidget {
     return Scaffold(
       body: Container(
         decoration: BoxDecoration(
-          gradient: dark ? AppColors.darkCanvasGradient : AppColors.canvasGradient,
+          gradient: dark ? AppColors.canvasGradient : AppColors.lightCanvasGradient,
         ),
         child: Stack(
           children: [
@@ -22,7 +22,9 @@ class SplashScreen extends StatelessWidget {
               right: -70,
               child: _Blob(
                 size: 240,
-                color: dark ? AppColors.darkBubbleIn : AppColors.softAqua.withOpacity(.35),
+                color: dark
+                    ? AppColors.accentSurface.withOpacity(.55)
+                    : AppColors.accentSoft.withOpacity(.35),
               ),
             ),
             Positioned(
@@ -30,7 +32,9 @@ class SplashScreen extends StatelessWidget {
               left: -80,
               child: _Blob(
                 size: 280,
-                color: dark ? AppColors.darkBubbleOut : AppColors.paleMint,
+                color: dark
+                    ? AppColors.surface
+                    : AppColors.accentSoft.withOpacity(.25),
               ),
             ),
             Center(
@@ -50,7 +54,7 @@ class SplashScreen extends StatelessWidget {
                   Text(
                     'Closer, wherever you are.',
                     style: TextStyle(
-                      color: dark ? Colors.white60 : AppColors.sageGray,
+                      color: dark ? AppColors.textSecondary : AppColors.lightTextSecondary,
                       fontSize: 15.5,
                       fontWeight: FontWeight.w500,
                     ),
@@ -61,7 +65,7 @@ class SplashScreen extends StatelessWidget {
                     height: 24,
                     child: CircularProgressIndicator(
                       strokeWidth: 2.6,
-                      color: AppColors.aquaTeal,
+                      color: AppColors.accent,
                     ),
                   ),
                 ],

@@ -177,7 +177,7 @@ class _AudioCallScreenState extends ConsumerState<AudioCallScreen> {
                   borderRadius: BorderRadius.circular(999),
                   border: Border.all(
                     color: _noiseSuppression
-                        ? AppColors.softAqua.withOpacity(.45)
+                        ? AppColors.accentSoft.withOpacity(.45)
                         : Colors.transparent,
                   ),
                 ),
@@ -188,7 +188,7 @@ class _AudioCallScreenState extends ConsumerState<AudioCallScreen> {
                       Icons.hearing_rounded,
                       size: 16,
                       color: _noiseSuppression
-                          ? AppColors.softAqua
+                          ? AppColors.accentSoft
                           : Colors.white38,
                     ),
                     const SizedBox(width: 7),
@@ -200,7 +200,7 @@ class _AudioCallScreenState extends ConsumerState<AudioCallScreen> {
                         fontSize: 12,
                         fontWeight: FontWeight.w700,
                         color: _noiseSuppression
-                            ? AppColors.softAqua
+                            ? AppColors.accentSoft
                             : Colors.white38,
                       ),
                     ),

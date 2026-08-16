@@ -6,15 +6,14 @@ import 'package:intl/intl.dart';
 import '../../models/app_user.dart';
 import '../../models/call_data.dart';
 import '../../models/chat_message.dart';
-import '../../providers/call_controller.dart';
 import '../../providers/providers.dart';
-import '../../services/permission_service.dart';
 import '../../theme/app_theme.dart';
+import '../../utils/contact_actions.dart';
 import '../../widgets/avatar.dart';
-import '../../widgets/presence_dot.dart';
-import '../call/audio_call_screen.dart';
-import '../call/video_call_screen.dart';
+import '../../widgets/states.dart';
 
+/// A 1-on-1 conversation: blue outgoing bubbles, charcoal incoming bubbles,
+/// day separators and a rounded composer.
 class ChatScreen extends ConsumerStatefulWidget {
   const ChatScreen({super.key, required this.peer, required this.chatId});
 
@@ -32,6 +31,12 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   int _previousMessageCount = 0;
 
   @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _markRead());
+  }
+
+  @override
   void dispose() {
     _input.dispose();
     _scroll.dispose();
@@ -39,6 +44,19 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   }
 
   bool get _reduceMotion => MediaQuery.of(context).disableAnimations;
+
+  /// Clears the unread badge for this conversation.
+  Future<void> _markRead() async {
+    final me = ref.read(authStateProvider).value;
+    if (me == null) return;
+    try {
+      await ref
+          .read(chatServiceProvider)
+          .markMessagesRead(widget.chatId, me.uid);
+    } catch (_) {
+      // Read receipts are best-effort — never block the conversation.
+    }
+  }
 
   Future<void> _send() async {
     final text = _input.text.trim();
@@ -70,91 +88,83 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
   void _scrollToBottom() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (_scroll.hasClients) {
-        final duration = _reduceMotion
-            ? Duration.zero
-            : const Duration(milliseconds: 220);
-        _scroll.animateTo(
-          _scroll.position.maxScrollExtent,
-          duration: duration,
-          curve: Curves.easeOutCubic,
-        );
-      }
+      if (!_scroll.hasClients) return;
+      _scroll.animateTo(
+        _scroll.position.maxScrollExtent,
+        duration:
+            _reduceMotion ? Duration.zero : const Duration(milliseconds: 220),
+        curve: Curves.easeOutCubic,
+      );
     });
   }
 
-  Future<void> _startCall(CallType type) async {
-    final ok =
-        await PermissionService.ensureForCall(context, video: type == CallType.video);
-    if (!ok) return;
-    final me = ref.read(currentAppUserProvider).value;
-    if (me == null) return;
-    final call = await ref.read(callControllerProvider.notifier).startCall(
-          caller: me,
-          callee: widget.peer,
-          type: type,
-        );
-    if (!mounted) return;
-    Navigator.of(context).push(MaterialPageRoute(
-      builder: (_) => type == CallType.video
-          ? VideoCallScreen(call: call, isCaller: true)
-          : AudioCallScreen(call: call, isCaller: true),
-    ));
-  }
+  void _startCall(CallType type) =>
+      ContactActions.startCall(context, ref, widget.peer, type);
 
-  /// Profile sheet (report §4: profile view with Message / Call / Video).
   void _showProfileSheet() {
     showModalBottomSheet<void>(
       context: context,
-      builder: (sheetContext) => Padding(
-        padding: const EdgeInsets.fromLTRB(24, 8, 24, 32),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            UserAvatar(user: widget.peer, radius: 44, showPresence: true),
-            const SizedBox(height: 16),
-            Text(widget.peer.name,
-                textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.titleLarge),
-            const SizedBox(height: 4),
-            Text(
-              widget.peer.email.isEmpty ? 'Hangout user' : widget.peer.email,
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                color: Theme.of(context).brightness == Brightness.dark
-                    ? Colors.white60
-                    : AppColors.sageGray,
-                fontSize: 14,
+      builder: (sheetContext) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(24, 4, 24, 28),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              UserAvatar(
+                user: widget.peer,
+                radius: 44,
+                ringColor: AppColors.accent,
+                presenceBorderColor: AppColors.surface,
+                showPresence: true,
               ),
-            ),
-            const SizedBox(height: 22),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: [
-                _ProfileAction(
-                  icon: Icons.chat_bubble_rounded,
-                  label: 'Message',
-                  onTap: () => Navigator.of(sheetContext).pop(),
+              const SizedBox(height: 16),
+              Text(
+                widget.peer.name,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontSize: 21,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.textPrimary,
                 ),
-                _ProfileAction(
-                  icon: Icons.call_rounded,
-                  label: 'Call',
-                  onTap: () {
-                    Navigator.of(sheetContext).pop();
-                    _startCall(CallType.audio);
-                  },
+              ),
+              const SizedBox(height: 4),
+              Text(
+                widget.peer.email.isEmpty ? 'Hangout user' : widget.peer.email,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  color: AppColors.textSecondary,
+                  fontSize: 14.5,
                 ),
-                _ProfileAction(
-                  icon: Icons.videocam_rounded,
-                  label: 'Video',
-                  onTap: () {
-                    Navigator.of(sheetContext).pop();
-                    _startCall(CallType.video);
-                  },
-                ),
-              ],
-            ),
-          ],
+              ),
+              const SizedBox(height: 24),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: [
+                  _ProfileAction(
+                    icon: Icons.chat_bubble_rounded,
+                    label: 'Message',
+                    onTap: () => Navigator.of(sheetContext).pop(),
+                  ),
+                  _ProfileAction(
+                    icon: Icons.call_rounded,
+                    label: 'Call',
+                    onTap: () {
+                      Navigator.of(sheetContext).pop();
+                      _startCall(CallType.audio);
+                    },
+                  ),
+                  _ProfileAction(
+                    icon: Icons.videocam_rounded,
+                    label: 'Video',
+                    onTap: () {
+                      Navigator.of(sheetContext).pop();
+                      _startCall(CallType.video);
+                    },
+                  ),
+                ],
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -164,105 +174,107 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   Widget build(BuildContext context) {
     final messages = ref.watch(messagesProvider(widget.chatId));
     final me = ref.watch(authStateProvider).value;
-    final scheme = Theme.of(context).colorScheme;
 
     return Scaffold(
       appBar: AppBar(
-        toolbarHeight: 72,
+        toolbarHeight: 68,
         titleSpacing: 0,
-        title: Row(
-          children: [
-            UserAvatar(user: widget.peer, radius: 21, showPresence: true),
-            const SizedBox(width: 11),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(widget.peer.name,
+        leadingWidth: 40,
+        leading: IconButton(
+          padding: EdgeInsets.zero,
+          icon: const Icon(Icons.arrow_back_rounded),
+          tooltip: 'Back',
+          onPressed: () => Navigator.of(context).maybePop(),
+        ),
+        title: InkWell(
+          onTap: _showProfileSheet,
+          child: Row(
+            children: [
+              UserAvatar(
+                user: widget.peer,
+                radius: 20,
+                showPresence: true,
+                presenceBorderColor: AppColors.canvas,
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      widget.peer.name,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
-                          fontSize: 16, fontWeight: FontWeight.w700)),
-                  const SizedBox(height: 2),
-                  Row(
-                    children: [
-                      const PresenceDot(radius: 3.5, borderWidth: 0),
-                      const SizedBox(width: 5),
-                      Text('Online',
-                          style: TextStyle(
-                              fontSize: 12,
-                              color: AppColors.success,
-                              fontWeight: FontWeight.w600)),
-                    ],
-                  ),
-                ],
+                        fontSize: 17,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    const Text(
+                      'Online',
+                      style: TextStyle(
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w500,
+                        color: AppColors.success,
+                      ),
+                    ),
+                  ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
         actions: [
-          IconButton.filledTonal(
-            icon: const Icon(Icons.videocam_rounded, size: 21),
+          IconButton(
+            icon: const Icon(Icons.videocam_rounded,
+                size: 24, color: AppColors.accent),
             tooltip: 'Video call',
             onPressed: () => _startCall(CallType.video),
-            style: IconButton.styleFrom(
-              backgroundColor: scheme.primaryContainer,
-              foregroundColor: AppColors.teal,
-            ),
           ),
-          const SizedBox(width: 3),
-          IconButton.filledTonal(
-            icon: const Icon(Icons.call_rounded, size: 20),
-            tooltip: 'Audio call',
+          IconButton(
+            icon: const Icon(Icons.call_rounded,
+                size: 22, color: AppColors.accent),
+            tooltip: 'Voice call',
             onPressed: () => _startCall(CallType.audio),
-            style: IconButton.styleFrom(
-              backgroundColor: scheme.primaryContainer,
-              foregroundColor: AppColors.teal,
-            ),
           ),
-          const SizedBox(width: 2),
-          Padding(
-            padding: const EdgeInsets.only(right: 4),
-            child: PopupMenuButton<String>(
-              tooltip: 'More options',
-              icon: const Icon(Icons.more_vert_rounded),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
-              ),
-              color: scheme.surface,
-              onSelected: (value) {
-                if (value == 'profile') _showProfileSheet();
-              },
-              itemBuilder: (_) => const [
-                PopupMenuItem(
-                  value: 'profile',
-                  child: Row(
-                    children: [
-                      Icon(Icons.person_outline_rounded, size: 20),
-                      SizedBox(width: 10),
-                      Text('View profile'),
-                    ],
-                  ),
+          PopupMenuButton<String>(
+            tooltip: 'More options',
+            icon: const Icon(Icons.more_vert_rounded),
+            onSelected: (value) {
+              if (value == 'profile') _showProfileSheet();
+            },
+            itemBuilder: (_) => const [
+              PopupMenuItem(
+                value: 'profile',
+                child: Row(
+                  children: [
+                    Icon(Icons.person_outline_rounded, size: 20),
+                    SizedBox(width: 10),
+                    Text('View profile'),
+                  ],
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
+          const SizedBox(width: 4),
         ],
       ),
       body: Column(
         children: [
           Expanded(
             child: messages.when(
-              loading: () =>
-                  const Center(child: CircularProgressIndicator(color: AppColors.aquaTeal)),
-              error: (_, __) => const _ChatNotice(
+              loading: () => const LoadingState(),
+              error: (_, __) => const EmptyState(
                 icon: Icons.cloud_off_rounded,
                 title: 'Messages unavailable',
                 subtitle: 'Check your connection and try again.',
               ),
               data: (list) {
                 if (list.isEmpty) {
-                  return _ChatNotice(
+                  return EmptyState(
                     icon: Icons.waving_hand_rounded,
                     title: 'Say hello to ${widget.peer.name.split(' ').first}',
                     subtitle: 'This is the beginning of your conversation.',
@@ -271,12 +283,14 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                 if (list.length > _previousMessageCount) {
                   _previousMessageCount = list.length;
                   _scrollToBottom();
+                  WidgetsBinding.instance
+                      .addPostFrameCallback((_) => _markRead());
                 }
                 return ListView.builder(
                   controller: _scroll,
                   keyboardDismissBehavior:
                       ScrollViewKeyboardDismissBehavior.onDrag,
-                  padding: const EdgeInsets.fromLTRB(14, 18, 14, 12),
+                  padding: const EdgeInsets.fromLTRB(14, 14, 14, 10),
                   itemCount: list.length,
                   itemBuilder: (context, i) {
                     final message = list[i];
@@ -329,7 +343,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 }
 
 // ───────────────────────────────────────────────────────────────────────────
-// Floating composer (report §6.2)
+// Composer
 // ───────────────────────────────────────────────────────────────────────────
 class _Composer extends StatefulWidget {
   const _Composer({
@@ -348,32 +362,12 @@ class _Composer extends StatefulWidget {
 
 class _ComposerState extends State<_Composer> {
   bool _emojiOpen = false;
-  final _focusNode = FocusNode();
 
   static const _emojiList = [
     '😀', '😂', '😍', '🥰', '😎', '🤔', '🤗',
     '👍', '🙏', '👏', '🎉', '❤️', '🔥', '💯',
     '🌊', '☕', '🎧', '🎵', '⚽', '🌙',
   ];
-
-  /// True while the text field has focus — the box morphs from a fixed
-  /// fully-rounded pill into a rectangular input while typing.
-  bool get _focused => _focusNode.hasFocus;
-
-  @override
-  void initState() {
-    super.initState();
-    _focusNode.addListener(_handleFocusChanged);
-  }
-
-  void _handleFocusChanged() => setState(() {});
-
-  @override
-  void dispose() {
-    _focusNode.removeListener(_handleFocusChanged);
-    _focusNode.dispose();
-    super.dispose();
-  }
 
   void _insertEmoji(String emoji) {
     final text = widget.controller.text;
@@ -391,17 +385,22 @@ class _ComposerState extends State<_Composer> {
       context: context,
       builder: (sheetContext) => SafeArea(
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(20, 6, 20, 22),
+          padding: const EdgeInsets.fromLTRB(20, 4, 20, 22),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Add to chat',
-                  style: Theme.of(context).textTheme.titleLarge),
-              const SizedBox(height: 14),
+              const Text(
+                'Add to chat',
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+              const SizedBox(height: 12),
               _AttachOption(
                 icon: Icons.photo_library_outlined,
-                color: AppColors.teal,
                 label: 'Photos & videos',
                 onTap: () {
                   Navigator.of(sheetContext).pop();
@@ -410,7 +409,6 @@ class _ComposerState extends State<_Composer> {
               ),
               _AttachOption(
                 icon: Icons.insert_drive_file_outlined,
-                color: AppColors.aquaTeal,
                 label: 'Document',
                 onTap: () {
                   Navigator.of(sheetContext).pop();
@@ -419,7 +417,6 @@ class _ComposerState extends State<_Composer> {
               ),
               _AttachOption(
                 icon: Icons.photo_camera_outlined,
-                color: AppColors.brightTeal,
                 label: 'Camera',
                 onTap: () {
                   Navigator.of(sheetContext).pop();
@@ -441,164 +438,137 @@ class _ComposerState extends State<_Composer> {
 
   @override
   Widget build(BuildContext context) {
-    final dark = Theme.of(context).brightness == Brightness.dark;
-
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        // Emoji strip (report §6.4: emoji panel).
-        AnimatedSize(
-          duration: const Duration(milliseconds: 200),
-          curve: Curves.easeOut,
-          child: _emojiOpen
-              ? Container(
-                  width: double.infinity,
-                  margin: const EdgeInsets.fromLTRB(12, 0, 12, 8),
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: dark ? AppColors.darkSurface : Colors.white,
-                    borderRadius: BorderRadius.circular(18),
-                    boxShadow: AppColors.cardShadow,
-                  ),
-                  child: Wrap(
-                    spacing: 4,
-                    runSpacing: 2,
-                    children: [
-                      for (final e in _emojiList)
-                        InkWell(
-                          customBorder: const CircleBorder(),
-                          onTap: () => _insertEmoji(e),
-                          child: Padding(
-                            padding: const EdgeInsets.all(5),
-                            child: Text(e, style: const TextStyle(fontSize: 22)),
-                          ),
-                        ),
-                    ],
-                  ),
-                )
-              : const SizedBox(width: double.infinity),
-        ),
-        // Composer box: fixed pill when idle, morphs into a rectangle on
-        // focus (rounded 999 → 14) and grows up to 5 lines while typing.
-        AnimatedContainer(
-          duration: const Duration(milliseconds: 220),
-          curve: Curves.easeOutCubic,
-          margin: const EdgeInsets.fromLTRB(12, 0, 12, 10),
-          padding: EdgeInsets.symmetric(
-            horizontal: 6,
-            vertical: _focused ? 8 : 5,
-          ),
-          decoration: BoxDecoration(
-            color: dark ? AppColors.darkSurface : Colors.white,
-            borderRadius: BorderRadius.circular(_focused ? 14 : 999),
-            boxShadow: AppColors.floatingShadow,
-            border: Border.all(
-              color: _focused
-                  ? (dark
-                      ? AppColors.softAqua.withOpacity(.5)
-                      : AppColors.teal.withOpacity(.45))
-                  : (dark
-                      ? Colors.white.withOpacity(.07)
-                      : AppColors.teal.withOpacity(.14)),
-            ),
-          ),
-          child: SafeArea(
-            top: false,
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                IconButton(
-                  tooltip: 'Attach',
-                  onPressed: _showAttachSheet,
-                  icon: const Icon(Icons.add_rounded, size: 26),
-                  style: IconButton.styleFrom(
-                    backgroundColor:
-                        dark ? Colors.white.withOpacity(.08) : AppColors.glassMint,
-                    foregroundColor: AppColors.teal,
-                  ),
-                ),
-                const SizedBox(width: 2),
-                Expanded(
-                  child: TextField(
-                    controller: widget.controller,
-                    focusNode: _focusNode,
-                    minLines: 1,
-                    // Fixed single line while idle; grows when typing.
-                    maxLines: _focused ? 5 : 1,
-                    textCapitalization: TextCapitalization.sentences,
-                    textInputAction: TextInputAction.newline,
-                    decoration: const InputDecoration(
-                      hintText: 'Message',
-                      filled: false,
-                      isDense: true,
-                      contentPadding:
-                          EdgeInsets.symmetric(horizontal: 10, vertical: 12),
-                      border: InputBorder.none,
-                      enabledBorder: InputBorder.none,
-                      focusedBorder: InputBorder.none,
-                    ),
-                  ),
-                ),
-                IconButton(
-                  tooltip: 'Emoji',
-                  onPressed: () => setState(() => _emojiOpen = !_emojiOpen),
-                  icon: const Icon(Icons.emoji_emotions_rounded,
-                      size: 24),
-                  color: _emojiOpen ? AppColors.teal : AppColors.sageGray,
-                ),
-                ValueListenableBuilder<TextEditingValue>(
-                  valueListenable: widget.controller,
-                  builder: (context, value, _) {
-                    final active =
-                        value.text.trim().isNotEmpty && !widget.sending;
-                    return AnimatedScale(
-                      scale: active ? 1 : .9,
-                      duration: const Duration(milliseconds: 160),
-                      curve: Curves.easeOut,
-                      child: AnimatedContainer(
-                        duration: const Duration(milliseconds: 160),
-                        width: 46,
-                        height: 46,
-                        decoration: BoxDecoration(
-                          gradient: active ? AppColors.brandGradient : null,
-                          color: active
-                              ? null
-                              : (dark
-                                  ? Colors.white.withOpacity(.08)
-                                  : AppColors.glassMint),
-                          shape: BoxShape.circle,
-                        ),
-                        child: IconButton(
-                          onPressed: active
-                              ? widget.onSend
-                              : () => _comingSoon('Voice messages'),
-                          tooltip: active ? 'Send' : 'Voice message',
-                          icon: widget.sending
-                              ? const SizedBox(
-                                  width: 18,
-                                  height: 18,
-                                  child: CircularProgressIndicator(
-                                      strokeWidth: 2, color: Colors.white),
-                                )
-                              : Icon(
-                                  active
-                                      ? Icons.send_rounded
-                                      : Icons.mic_rounded,
-                                  color: active
-                                      ? Colors.white
-                                      : AppColors.sageGray,
-                                  size: active ? 21 : 22,
-                                ),
+    return Container(
+      decoration: const BoxDecoration(
+        color: AppColors.canvasElevated,
+        border: Border(top: BorderSide(color: AppColors.divider, width: 1)),
+      ),
+      child: SafeArea(
+        top: false,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (_emojiOpen)
+              SizedBox(
+                height: 108,
+                child: GridView.count(
+                  crossAxisCount: 7,
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  children: [
+                    for (final emoji in _emojiList)
+                      InkWell(
+                        onTap: () => _insertEmoji(emoji),
+                        child: Center(
+                          child: Text(emoji, style: const TextStyle(fontSize: 22)),
                         ),
                       ),
-                    );
-                  },
+                  ],
                 ),
-              ],
+              ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(8, 8, 8, 8),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  IconButton(
+                    tooltip: 'Attach',
+                    icon: const Icon(Icons.add_circle_outline_rounded,
+                        color: AppColors.textSecondary),
+                    onPressed: _showAttachSheet,
+                  ),
+                  Expanded(
+                    child: Container(
+                      constraints: const BoxConstraints(maxHeight: 120),
+                      decoration: BoxDecoration(
+                        color: AppColors.surface,
+                        borderRadius: BorderRadius.circular(AppRadius.xl),
+                      ),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          Expanded(
+                            child: TextField(
+                              controller: widget.controller,
+                              minLines: 1,
+                              maxLines: 5,
+                              textCapitalization: TextCapitalization.sentences,
+                              style: const TextStyle(
+                                fontSize: 16,
+                                color: AppColors.textPrimary,
+                              ),
+                              decoration: const InputDecoration(
+                                hintText: 'Message',
+                                filled: false,
+                                border: InputBorder.none,
+                                enabledBorder: InputBorder.none,
+                                focusedBorder: InputBorder.none,
+                                contentPadding: EdgeInsets.fromLTRB(18, 12, 8, 12),
+                              ),
+                              onSubmitted: (_) => widget.onSend(),
+                            ),
+                          ),
+                          IconButton(
+                            tooltip: 'Emoji',
+                            icon: Icon(
+                              _emojiOpen
+                                  ? Icons.keyboard_rounded
+                                  : Icons.emoji_emotions_outlined,
+                              color: AppColors.textSecondary,
+                              size: 22,
+                            ),
+                            onPressed: () =>
+                                setState(() => _emojiOpen = !_emojiOpen),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  ValueListenableBuilder<TextEditingValue>(
+                    valueListenable: widget.controller,
+                    builder: (context, value, _) {
+                      final active = value.text.trim().isNotEmpty;
+                      return Material(
+                        color: active
+                            ? AppColors.accent
+                            : AppColors.surfaceMuted,
+                        shape: const CircleBorder(),
+                        child: InkWell(
+                          customBorder: const CircleBorder(),
+                          onTap: active && !widget.sending
+                              ? widget.onSend
+                              : null,
+                          child: SizedBox(
+                            width: 48,
+                            height: 48,
+                            child: widget.sending
+                                ? const Padding(
+                                    padding: EdgeInsets.all(14),
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: Colors.white,
+                                    ),
+                                  )
+                                : Icon(
+                                    active
+                                        ? Icons.send_rounded
+                                        : Icons.mic_rounded,
+                                    color: active
+                                        ? Colors.white
+                                        : AppColors.textSecondary,
+                                    size: active ? 21 : 22,
+                                  ),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ],
+              ),
             ),
-          ),
+          ],
         ),
-      ],
+      ),
     );
   }
 }
@@ -606,13 +576,11 @@ class _ComposerState extends State<_Composer> {
 class _AttachOption extends StatelessWidget {
   const _AttachOption({
     required this.icon,
-    required this.color,
     required this.label,
     required this.onTap,
   });
 
   final IconData icon;
-  final Color color;
   final String label;
   final VoidCallback onTap;
 
@@ -624,21 +592,27 @@ class _AttachOption extends StatelessWidget {
         width: 44,
         height: 44,
         decoration: BoxDecoration(
-          color: color.withOpacity(.12),
-          borderRadius: BorderRadius.circular(14),
+          color: AppColors.accentSurface,
+          borderRadius: BorderRadius.circular(AppRadius.sm),
         ),
-        child: Icon(icon, color: color, size: 22),
+        child: Icon(icon, color: AppColors.accentSoft, size: 21),
       ),
-      title: Text(label, style: const TextStyle(fontWeight: FontWeight.w700)),
+      title: Text(
+        label,
+        style: const TextStyle(
+          fontWeight: FontWeight.w600,
+          color: AppColors.textPrimary,
+        ),
+      ),
       trailing: const Icon(Icons.chevron_right_rounded,
-          color: AppColors.sageGray),
+          color: AppColors.textSecondary),
       onTap: onTap,
     );
   }
 }
 
 // ───────────────────────────────────────────────────────────────────────────
-// Message bubbles (report §6.1: white in / pale-mint out, teal ticks)
+// Bubbles
 // ───────────────────────────────────────────────────────────────────────────
 class _MessageBubble extends StatelessWidget {
   const _MessageBubble({
@@ -657,45 +631,40 @@ class _MessageBubble extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final dark = Theme.of(context).brightness == Brightness.dark;
+    const big = Radius.circular(20);
+    const small = Radius.circular(7);
 
     final bubble = Align(
       alignment: mine ? Alignment.centerRight : Alignment.centerLeft,
       child: Container(
-        margin:
-            EdgeInsets.only(top: startsGroup ? 8 : 2, bottom: endsGroup ? 3 : 0),
-        padding: const EdgeInsets.fromLTRB(14, 9, 12, 8),
+        margin: EdgeInsets.only(
+          top: startsGroup ? 8 : 2,
+          bottom: endsGroup ? 4 : 0,
+        ),
+        padding: const EdgeInsets.fromLTRB(14, 9, 12, 9),
         constraints:
             BoxConstraints(maxWidth: MediaQuery.sizeOf(context).width * .78),
         decoration: BoxDecoration(
-          color: mine
-              ? (dark ? AppColors.darkBubbleOut : AppColors.paleMint)
-              : (dark ? AppColors.darkBubbleIn : Colors.white),
-          border: mine
-              ? null
-              : Border.all(color: scheme.outlineVariant.withOpacity(.55)),
+          color: mine ? AppColors.accent : AppColors.surface,
           borderRadius: BorderRadius.only(
-            topLeft: Radius.circular(mine ? topRadius : (startsGroup ? 4 : 8)),
-            topRight: Radius.circular(mine ? (startsGroup ? 4 : 8) : topRadius),
-            bottomLeft:
-                Radius.circular(mine ? bottomRadius : (endsGroup ? 4 : 8)),
-            bottomRight:
-                Radius.circular(mine ? (endsGroup ? 4 : 8) : bottomRadius),
+            topLeft: mine ? big : (startsGroup ? big : small),
+            topRight: mine ? (startsGroup ? big : small) : big,
+            bottomLeft: mine ? big : (endsGroup ? big : small),
+            bottomRight: mine ? (endsGroup ? big : small) : big,
           ),
         ),
         child: Wrap(
           alignment: WrapAlignment.end,
           crossAxisAlignment: WrapCrossAlignment.end,
-          spacing: 8,
+          spacing: 10,
           runSpacing: 2,
           children: [
             Text(
               message.text,
               style: TextStyle(
-                color: dark ? const Color(0xFFEFFBF9) : AppColors.deepInk,
+                color: mine ? Colors.white : AppColors.textPrimary,
                 fontSize: 15.5,
-                height: 1.32,
+                height: 1.35,
               ),
             ),
             Padding(
@@ -704,22 +673,19 @@ class _MessageBubble extends StatelessWidget {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
-                    DateFormat.jm().format(message.sentAt.toLocal()),
+                    DateFormat.Hm().format(message.sentAt.toLocal()),
                     style: TextStyle(
-                      fontSize: 10,
-                      fontWeight: FontWeight.w600,
-                      color: dark ? Colors.white38 : AppColors.sageGray,
+                      fontSize: 10.5,
+                      fontWeight: FontWeight.w500,
+                      color: mine ? Colors.white70 : AppColors.textSecondary,
                     ),
                   ),
                   if (mine) ...[
-                    const SizedBox(width: 3),
+                    const SizedBox(width: 4),
                     Icon(
                       message.read ? Icons.done_all_rounded : Icons.done_rounded,
                       size: 14,
-                      // Read ticks turn teal (report §6.1 / §9).
-                      color: message.read
-                          ? (dark ? AppColors.softAqua : AppColors.teal)
-                          : (dark ? Colors.white38 : AppColors.sageGray),
+                      color: message.read ? Colors.white : Colors.white70,
                     ),
                   ],
                 ],
@@ -731,7 +697,6 @@ class _MessageBubble extends StatelessWidget {
     );
 
     if (!animate) return bubble;
-    // Spring-in on send (report §9): ~200ms ease-out, no re-run on rebuilds.
     return TweenAnimationBuilder<double>(
       tween: Tween(begin: 0, end: 1),
       duration: const Duration(milliseconds: 200),
@@ -746,16 +711,11 @@ class _MessageBubble extends StatelessWidget {
       child: bubble,
     );
   }
-
-  double get topRadius => startsGroup ? 18 : 6;
-  double get bottomRadius => endsGroup ? 18 : 6;
 }
 
-// ───────────────────────────────────────────────────────────────────────────
-// Day separator chip (report §8: "date separators as centered chips")
-// ───────────────────────────────────────────────────────────────────────────
 class _DayLabel extends StatelessWidget {
   const _DayLabel({required this.date});
+
   final DateTime date;
 
   @override
@@ -769,75 +729,25 @@ class _DayLabel extends StatelessWidget {
         : day.isAtSameMomentAs(today.subtract(const Duration(days: 1)))
             ? 'Yesterday'
             : DateFormat('MMM d, y').format(local);
+
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 14),
       child: Center(
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
           decoration: BoxDecoration(
-            color: Theme.of(context).brightness == Brightness.dark
-                ? AppColors.darkBubbleIn
-                : AppColors.paleMint,
-            borderRadius: BorderRadius.circular(999),
+            color: AppColors.surface,
+            borderRadius: BorderRadius.circular(AppRadius.pill),
           ),
           child: Text(
             label,
-            style: TextStyle(
-              color: Theme.of(context).brightness == Brightness.dark
-                  ? AppColors.softAqua
-                  : AppColors.darkTeal,
-              fontSize: 11,
-              fontWeight: FontWeight.w800,
-              letterSpacing: 0.4,
+            style: const TextStyle(
+              color: AppColors.textSecondary,
+              fontSize: 11.5,
+              fontWeight: FontWeight.w600,
+              letterSpacing: 0.3,
             ),
           ),
-        ),
-      ),
-    );
-  }
-}
-
-class _ChatNotice extends StatelessWidget {
-  const _ChatNotice({
-    required this.icon,
-    required this.title,
-    required this.subtitle,
-  });
-  final IconData icon;
-  final String title;
-  final String subtitle;
-
-  @override
-  Widget build(BuildContext context) {
-    final dark = Theme.of(context).brightness == Brightness.dark;
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 68,
-              height: 68,
-              decoration: BoxDecoration(
-                color: dark ? AppColors.darkBubbleIn : AppColors.paleMint,
-                shape: BoxShape.circle,
-              ),
-              child: Icon(icon, color: AppColors.teal, size: 30),
-            ),
-            const SizedBox(height: 16),
-            Text(title,
-                textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.titleMedium),
-            const SizedBox(height: 5),
-            Text(
-              subtitle,
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                color: dark ? Colors.white60 : AppColors.sageGray,
-              ),
-            ),
-          ],
         ),
       ),
     );
@@ -859,9 +769,9 @@ class _ProfileAction extends StatelessWidget {
   Widget build(BuildContext context) {
     return InkWell(
       onTap: onTap,
-      customBorder: const CircleBorder(),
+      borderRadius: BorderRadius.circular(AppRadius.md),
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -869,25 +779,18 @@ class _ProfileAction extends StatelessWidget {
               width: 54,
               height: 54,
               decoration: const BoxDecoration(
-                gradient: AppColors.brandGradient,
+                color: AppColors.accent,
                 shape: BoxShape.circle,
-                boxShadow: [
-                  BoxShadow(
-                    color: Color(0x3312A897),
-                    blurRadius: 14,
-                    offset: Offset(0, 6),
-                  ),
-                ],
               ),
-              child: Icon(icon, color: Colors.white, size: 24),
+              child: Icon(icon, color: Colors.white, size: 23),
             ),
-            const SizedBox(height: 7),
+            const SizedBox(height: 8),
             Text(
               label,
               style: const TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w700,
-                color: AppColors.sageGray,
+                fontSize: 12.5,
+                fontWeight: FontWeight.w600,
+                color: AppColors.textSecondary,
               ),
             ),
           ],

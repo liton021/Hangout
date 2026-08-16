@@ -60,6 +60,44 @@ class ChatService {
     }, SetOptions(merge: true));
   }
 
+  /// Live count of messages in [chatId] that [myUid] hasn't read yet.
+  ///
+  /// Powers the blue unread badge on the chat list. Capped at 50 so a very
+  /// busy conversation can't inflate the listener payload.
+  Stream<int> unreadCountStream(String chatId, String myUid) {
+    return _db
+        .collection('chats')
+        .doc(chatId)
+        .collection('messages')
+        .where('read', isEqualTo: false)
+        .limit(50)
+        .snapshots()
+        .map((snap) => snap.docs
+            .where((doc) => (doc.data()['authorId'] as String?) != myUid)
+            .length);
+  }
+
+  /// Flags every incoming message in [chatId] as read (called when the user
+  /// opens the conversation) so the badge clears and the sender's ticks flip.
+  Future<void> markMessagesRead(String chatId, String myUid) async {
+    final snap = await _db
+        .collection('chats')
+        .doc(chatId)
+        .collection('messages')
+        .where('read', isEqualTo: false)
+        .limit(300)
+        .get();
+
+    final batch = _db.batch();
+    var pending = 0;
+    for (final doc in snap.docs) {
+      if ((doc.data()['authorId'] as String?) == myUid) continue;
+      batch.update(doc.reference, {'read': true});
+      pending++;
+    }
+    if (pending > 0) await batch.commit();
+  }
+
   /// Real-time stream of messages for a chat (newest last).
   Stream<List<ChatMessage>> messagesStream(String chatId) {
     return _db
