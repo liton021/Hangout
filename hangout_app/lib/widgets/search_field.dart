@@ -27,7 +27,7 @@ class SearchField extends StatelessWidget {
       autofocus: autofocus,
       focusNode: focusNode,
       textInputAction: TextInputAction.search,
-      style: const TextStyle(fontSize: 16, color: AppColors.textPrimary),
+      style: TextStyle(fontSize: 16, color: context.colors.textPrimary),
       decoration: InputDecoration(
         hintText: hint,
         isDense: true,
