@@ -26,9 +26,15 @@ if (flutterVersionName == null) {
 android {
     namespace = "com.example.hangout"
     compileSdk = 35
-    ndkVersion = flutter.ndkVersion
+    // Match the NDK required by the plugins (agora/firebase/etc. all ask for
+    // 25.1.8937393; NDK is backward compatible so use the highest).
+    ndkVersion = "25.1.8937393"
 
     compileOptions {
+        // Required by flutter_local_notifications: scheduled notifications
+        // use java.time APIs that need core library desugaring on older
+        // Android versions.
+        coreLibraryDesugaringEnabled = true
         sourceCompatibility = JavaVersion.VERSION_1_8
         targetCompatibility = JavaVersion.VERSION_1_8
     }
@@ -85,6 +91,11 @@ android {
 
 flutter {
     source = "../.."
+}
+
+dependencies {
+    // Core library desugaring for flutter_local_notifications.
+    coreLibraryDesugaring 'com.android.tools:desugar_jdk_libs:2.1.4'
 }
 
 // Firebase — requires android/app/google-services.json (see README).

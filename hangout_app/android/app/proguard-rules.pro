@@ -23,3 +23,18 @@
 -keepattributes Signature
 -keepattributes EnclosingMethod
 -keepattributes InnerClasses
+
+# ---- flutter_local_notifications (serializes notification details with
+#      Gson; R8 must not strip these, or release notifications break) ----
+-keep class com.dexterous.** { *; }
+-dontwarn sun.misc.**
+-keep class com.google.gson.stream.** { *; }
+-keep class * implements com.google.gson.TypeAdapter
+-keep class * implements com.google.gson.TypeAdapterFactory
+-keep class * implements com.google.gson.JsonSerializer
+-keep class * implements com.google.gson.JsonDeserializer
+-keepclassmembers,allowobfuscation class * {
+  @com.google.gson.annotations.SerializedName <fields>;
+}
+-keep,allowobfuscation,allowshrinking class com.google.gson.reflect.TypeToken
+-keep,allowobfuscation,allowshrinking class * extends com.google.gson.reflect.TypeToken

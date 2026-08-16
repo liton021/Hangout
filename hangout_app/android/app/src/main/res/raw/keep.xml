@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Keep resources that are only referenced from Dart code (e.g. the
+     notification icon passed as a string to flutter_local_notifications).
+     Without this, R8's resource shrinker (release builds) can strip them
+     and notifications silently lose their icon. -->
+<resources xmlns:tools="http://schemas.android.com/tools"
+    tools:keep="@drawable/ic_notification" />

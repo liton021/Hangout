@@ -63,6 +63,12 @@
             android:foregroundServiceType="dataSync|remoteMessaging"
             android:exported="false" />
 
+        <!-- flutter_local_notifications: delivers notification action taps
+             (Accept/Decline on the full-screen call alert) back to the app. -->
+        <receiver
+            android:name="com.dexterous.flutterlocalnotifications.ActionBroadcastReceiver"
+            android:exported="false" />
+
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />
