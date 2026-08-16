@@ -2,31 +2,34 @@ import 'package:flutter/material.dart';
 
 import '../theme/app_theme.dart';
 
-/// Small teal/green presence dot shown on avatars (report §6.4).
+/// Small green presence dot shown on avatars. The ring is punched out in the
+/// colour of whatever sits behind the avatar (canvas by default).
 class PresenceDot extends StatelessWidget {
   const PresenceDot({
     super.key,
     this.radius = 6.5,
     this.borderWidth = 2.5,
     this.color = AppColors.success,
+    this.borderColor,
   });
 
   final double radius;
   final double borderWidth;
   final Color color;
+  final Color? borderColor;
 
   @override
   Widget build(BuildContext context) {
-    // The dot sits on top of a card/app-bar surface, so the ring matches the
-    // current surface colour for a clean "cut-out" look.
-    final surface = Theme.of(context).colorScheme.surface;
+    final ring = borderColor ?? Theme.of(context).scaffoldBackgroundColor;
     return Container(
       width: radius * 2,
       height: radius * 2,
       decoration: BoxDecoration(
         color: color,
         shape: BoxShape.circle,
-        border: Border.all(color: surface, width: borderWidth),
+        border: borderWidth <= 0
+            ? null
+            : Border.all(color: ring, width: borderWidth),
       ),
     );
   }

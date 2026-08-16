@@ -30,7 +30,7 @@ class CallActionButton extends StatelessWidget {
       background = AppColors.danger;
       iconColor = Colors.white;
     } else if (active) {
-      background = AppColors.brandGradient.colors.first;
+      background = AppColors.accent;
       iconColor = Colors.white;
     } else {
       background = Colors.white.withOpacity(.18);

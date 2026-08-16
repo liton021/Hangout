@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/app_user.dart';
+import '../models/channel.dart';
 import '../models/chat_message.dart';
 import '../models/chat_summary.dart';
 import '../services/auth_service.dart';
@@ -25,7 +26,7 @@ final themeModeProvider =
 });
 
 class ThemeModeController extends StateNotifier<ThemeMode> {
-  ThemeModeController() : super(ThemeMode.system) {
+  ThemeModeController() : super(ThemeMode.dark) {
     _restore();
   }
 
@@ -35,7 +36,7 @@ class ThemeModeController extends StateNotifier<ThemeMode> {
     final saved = (await SharedPreferences.getInstance()).getString(_key);
     state = ThemeMode.values.firstWhere(
       (mode) => mode.name == saved,
-      orElse: () => ThemeMode.system,
+      orElse: () => ThemeMode.dark,
     );
   }
 
@@ -130,3 +131,28 @@ final messagesProvider =
     StreamProvider.family<List<ChatMessage>, String>((ref, chatId) {
   return ref.watch(chatServiceProvider).messagesStream(chatId);
 });
+
+/// Unread message count for a single chat — drives the blue badge on the
+/// chat list.
+final unreadCountProvider =
+    StreamProvider.family<int, String>((ref, chatId) {
+  final me = ref.watch(authStateProvider).value;
+  if (me == null) return Stream<int>.value(0);
+  return ref.watch(chatServiceProvider).unreadCountStream(chatId, me.uid);
+});
+
+// ---------------------------------------------------------------------------
+// Discovery
+// ---------------------------------------------------------------------------
+
+/// Public channels shown in the Discovery tab. Missing/empty collection is a
+/// normal state — the tab renders a placeholder card instead.
+final channelsProvider = StreamProvider<List<Channel>>((ref) {
+  return ref
+      .watch(firestoreProvider)
+      .collection('channels')
+      .limit(20)
+      .snapshots()
+      .map((snap) => snap.docs.map(Channel.fromSnapshot).toList());
+});
+

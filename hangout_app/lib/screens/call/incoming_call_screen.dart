@@ -162,7 +162,7 @@ class _IncomingCallScreenState extends ConsumerState<IncomingCallScreen> {
                             height: 72,
                             child: Icon(
                               isVideo ? Icons.videocam : Icons.call,
-                              color: AppColors.teal,
+                              color: AppColors.accent,
                               size: 32,
                             ),
                           ),

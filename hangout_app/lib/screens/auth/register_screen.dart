@@ -65,12 +65,12 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     final dark = Theme.of(context).brightness == Brightness.dark;
     return Scaffold(
       appBar: AppBar(
-        backgroundColor: dark ? AppColors.darkCanvas : AppColors.glassMint,
+        backgroundColor: Colors.transparent,
       ),
       body: Container(
         decoration: BoxDecoration(
           gradient:
-              dark ? AppColors.darkCanvasGradient : AppColors.canvasGradient,
+              dark ? AppColors.canvasGradient : AppColors.lightCanvasGradient,
         ),
         child: SafeArea(
           top: false,
@@ -94,7 +94,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                       Text(
                         'A few details and you’re ready to Hangout.',
                         style: TextStyle(
-                          color: dark ? Colors.white60 : AppColors.sageGray,
+                          color: dark ? AppColors.textSecondary : AppColors.lightTextSecondary,
                           fontSize: 16,
                           fontWeight: FontWeight.w500,
                         ),

@@ -68,7 +68,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       body: Container(
         decoration: BoxDecoration(
           gradient:
-              dark ? AppColors.darkCanvasGradient : AppColors.canvasGradient,
+              dark ? AppColors.canvasGradient : AppColors.lightCanvasGradient,
         ),
         child: Stack(
           children: [
@@ -82,8 +82,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   color: dark
-                      ? AppColors.darkBubbleIn
-                      : AppColors.softAqua.withOpacity(.30),
+                      ? AppColors.accentSurface.withOpacity(.55)
+                      : AppColors.accentSoft.withOpacity(.30),
                 ),
               ),
             ),
@@ -96,8 +96,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   color: dark
-                      ? AppColors.darkBubbleOut
-                      : AppColors.paleMint.withOpacity(.9),
+                      ? AppColors.surface
+                      : AppColors.accentSoft.withOpacity(.25),
                 ),
               ),
             ),
@@ -122,7 +122,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           Text(
                             'Sign in and pick up where you left off.',
                             style: TextStyle(
-                              color: dark ? Colors.white60 : AppColors.sageGray,
+                              color: dark ? AppColors.textSecondary : AppColors.lightTextSecondary,
                               fontSize: 16,
                               fontWeight: FontWeight.w500,
                             ),
@@ -189,7 +189,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                             children: [
                               Text('New to Hangout?',
                                   style: TextStyle(
-                                    color: dark ? Colors.white60 : AppColors.sageGray,
+                                    color: dark ? AppColors.textSecondary : AppColors.lightTextSecondary,
                                   )),
                               TextButton(
                                 onPressed: () => Navigator.of(context).push(
