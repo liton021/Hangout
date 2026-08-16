@@ -10,7 +10,6 @@ import '../../providers/providers.dart';
 import '../../services/permission_service.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/avatar.dart';
-import '../../widgets/brand_logo.dart';
 import '../../widgets/search_pill.dart';
 import '../call/audio_call_screen.dart';
 import '../call/video_call_screen.dart';
@@ -31,8 +30,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   final _chatSearch = TextEditingController();
   final _contactSearch = TextEditingController();
   bool _askedPermissions = false;
-
-  static const _titles = ['Chats', 'Contacts', 'Calls', 'Settings'];
 
   @override
   void initState() {
@@ -61,47 +58,23 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final me = ref.watch(currentAppUserProvider).value;
     return Scaffold(
-      appBar: AppBar(
-        toolbarHeight: 70,
-        titleSpacing: 20,
-        title: Row(
+      body: SafeArea(
+        bottom: false,
+        child: IndexedStack(
+          index: _tab,
           children: [
-            const BrandLogo(size: 38),
-            const SizedBox(width: 12),
-            Text(_titles[_tab]),
+            _ChatsTab(search: _chatSearch, onNewChat: _showNewChatSheet),
+            _ContactsTab(search: _contactSearch),
+            const CallsTab(),
+            const SettingsScreen(),
           ],
         ),
-        actions: [
-          if (_tab != 3)
-            Padding(
-              padding: const EdgeInsets.only(right: 16),
-              child: me != null
-                  ? UserAvatar(user: me, radius: 19, showPresence: true)
-                  : IconButton(
-                      onPressed: null,
-                      icon: const Icon(Icons.account_circle_outlined),
-                    ),
-            ),
-        ],
-      ),
-      body: IndexedStack(
-        index: _tab,
-        children: [
-          _ChatsTab(search: _chatSearch),
-          _ContactsTab(search: _contactSearch),
-          const CallsTab(),
-          const SettingsScreen(),
-        ],
       ),
       bottomNavigationBar: _FloatingNavBar(
         selectedIndex: _tab,
         onSelected: (i) => setState(() => _tab = i),
       ),
-      floatingActionButton: _tab == 0
-          ? _NewChatFab(onPressed: () => _showNewChatSheet())
-          : null,
     );
   }
 
@@ -370,12 +343,14 @@ class _NewChatSheet extends ConsumerWidget {
 }
 
 // ───────────────────────────────────────────────────────────────────────────
-// Chats tab
+// Chats tab — no top bar. Search floats at the bottom, right next to the
+// new-chat FAB, above the bottom nav (per user preference).
 // ───────────────────────────────────────────────────────────────────────────
 class _ChatsTab extends ConsumerWidget {
-  const _ChatsTab({required this.search});
+  const _ChatsTab({required this.search, required this.onNewChat});
 
   final TextEditingController search;
+  final VoidCallback onNewChat;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -384,16 +359,9 @@ class _ChatsTab extends ConsumerWidget {
     final byId = {for (final u in users) u.uid: u};
     final meUid = ref.watch(authStateProvider).value?.uid;
 
-    return Column(
+    return Stack(
       children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 6),
-          child: SearchPill(
-            controller: search,
-            hint: 'Search chats',
-          ),
-        ),
-        Expanded(
+        Positioned.fill(
           child: chats.when(
             loading: () => const _LoadingList(),
             error: (e, _) => _ErrorState(message: '$e'),
@@ -429,7 +397,7 @@ class _ChatsTab extends ConsumerWidget {
                     onRefresh: () async => ref.invalidate(chatsProvider),
                     child: ListView.separated(
                       physics: const AlwaysScrollableScrollPhysics(),
-                      padding: const EdgeInsets.fromLTRB(16, 8, 16, 96),
+                      padding: const EdgeInsets.fromLTRB(16, 12, 16, 96),
                       itemCount: filtered.length,
                       separatorBuilder: (_, __) => const SizedBox(height: 8),
                       itemBuilder: (context, i) {
@@ -451,6 +419,25 @@ class _ChatsTab extends ConsumerWidget {
                 },
               );
             },
+          ),
+        ),
+        // Search pill + new-chat FAB floating above the bottom nav.
+        Positioned(
+          left: 16,
+          right: 16,
+          bottom: 10,
+          child: Row(
+            children: [
+              Expanded(
+                child: SearchPill(
+                  controller: search,
+                  hint: 'Search chats',
+                  elevated: true,
+                ),
+              ),
+              const SizedBox(width: 12),
+              _NewChatFab(onPressed: onNewChat),
+            ],
           ),
         ),
       ],
@@ -553,16 +540,9 @@ class _ContactsTab extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final users = ref.watch(usersProvider);
-    return Column(
+    return Stack(
       children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 6),
-          child: SearchPill(
-            controller: search,
-            hint: 'Search contacts',
-          ),
-        ),
-        Expanded(
+        Positioned.fill(
           child: users.when(
             loading: () => const _LoadingList(),
             error: (e, _) => _ErrorState(message: '$e'),
@@ -593,7 +573,7 @@ class _ContactsTab extends ConsumerWidget {
                     );
                   }
                   return ListView.separated(
-                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 96),
                     itemCount: filtered.length,
                     separatorBuilder: (_, __) => const SizedBox(height: 8),
                     itemBuilder: (context, i) {
@@ -661,6 +641,17 @@ class _ContactsTab extends ConsumerWidget {
                 },
               );
             },
+          ),
+        ),
+        // Search pill floating above the bottom nav (no FAB on Contacts).
+        Positioned(
+          left: 16,
+          right: 16,
+          bottom: 10,
+          child: SearchPill(
+            controller: search,
+            hint: 'Search contacts',
+            elevated: true,
           ),
         ),
       ],
