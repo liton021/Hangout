@@ -37,23 +37,24 @@ class CallQualityIndicator extends StatelessWidget {
   bool get _isPoor => networkQuality >= 3;
 
   /// Icon and color for the network quality bar.
+  /// Uses signal_wifi_* icons (all bar variants exist in Flutter 3.24).
   IconData get _networkIcon {
     switch (networkQuality) {
       case 0:
-        return Icons.signal_cellular_alt;
+        return Icons.signal_wifi_off;
       case 1:
-        return Icons.signal_cellular_4_bar;
+        return Icons.signal_wifi_4_bar;
       case 2:
-        return Icons.signal_cellular_3_bar;
+        return Icons.signal_wifi_3_bar;
       case 3:
-        return Icons.signal_cellular_2_bar;
+        return Icons.signal_wifi_2_bar;
       case 4:
-        return Icons.signal_cellular_1_bar;
+        return Icons.signal_wifi_1_bar;
       case 5:
       case 6:
-        return Icons.signal_cellular_0_bar;
+        return Icons.signal_wifi_0_bar;
       default:
-        return Icons.signal_cellular_alt;
+        return Icons.signal_wifi_off;
     }
   }
 

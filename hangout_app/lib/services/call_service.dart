@@ -180,7 +180,8 @@ class CallService {
       //   Audio: MusicStandard → Default → SpeechStandard
       // and back up when the network recovers.
       onNetworkQuality: (connection, remoteUid, txQuality, rxQuality) {
-        _onNetworkQuality(txQuality, rxQuality);
+        // txQuality and rxQuality are QualityType enum values.
+        _onNetworkQuality(txQuality.index, rxQuality.index);
       },
       onLeaveChannel: (connection, stats) {
         if (!_leftChannel.isCompleted) _leftChannel.complete();
@@ -436,13 +437,19 @@ class CallService {
   ///   Normal → Default        (SDK-chosen for the scenario)
   ///   Low    → SpeechStandard (32 kbps mono, narrowband — excellent for
   ///            voice on constrained links)
+  ///
+  /// Uses setParameters() rather than setAudioProfile() because the latter
+  /// accepts 0 positional arguments in this SDK version; setParameters()
+  /// is the established pattern in this class (see [enableNoiseSuppression]).
   Future<void> _applyAudioLevel(_AudioLevel level) async {
     if (level.profile == _currentAudioLevel.profile) return;
     _currentAudioLevel = level;
     try {
-      await _engine?.setAudioProfile(
-        level.profile,
-        AudioScenarioType.audioScenarioGameStreaming,
+      // The AudioProfileType enum index matches the internal integer value
+      // the SDK uses for the "che.audio.audio_profile" parameter.
+      final profileIndex = level.profile.index;
+      await _engine?.setParameters(
+        '{"che.audio.audio_profile": $profileIndex}',
       );
     } catch (_) {
       // Keep the previous profile on failure.
