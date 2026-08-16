@@ -72,9 +72,22 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           ],
         ),
       ),
-      bottomNavigationBar: _FloatingNavBar(
-        selectedIndex: _tab,
-        onSelected: (i) => setState(() => _tab = i),
+      // CRITICAL: pin the slot height. Scaffold lays out bottomNavigationBar
+      // with a BOUNDED height, and a bare `Center` inside it expands to fill
+      // the whole screen (RenderPositionedBox: heightFactor == null → takes
+      // all bounded height) — which pushes the capsule to mid-screen and
+      // crushes the body to zero height. SafeArea also keeps the capsule
+      // clear of the system gesture bar (NavigationBar does this internally).
+      bottomNavigationBar: SafeArea(
+        top: false,
+        minimum: const EdgeInsets.only(bottom: 14),
+        child: SizedBox(
+          height: 60, // capsule: 7 (padding) + 46 (item) + 7 (padding)
+          child: _FloatingNavBar(
+            selectedIndex: _tab,
+            onSelected: (i) => setState(() => _tab = i),
+          ),
+        ),
       ),
     );
   }
@@ -128,9 +141,10 @@ class _FloatingNavBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final dark = Theme.of(context).brightness == Brightness.dark;
+    // The vertical spacing lives on the caller (SafeArea minimum + SizedBox),
+    // so this widget can never expand inside the bottomNavigationBar slot.
     return Center(
       child: Container(
-        margin: const EdgeInsets.only(bottom: 14),
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 7),
         decoration: BoxDecoration(
           color: dark ? AppColors.darkSurface : Colors.white,

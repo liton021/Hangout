@@ -102,6 +102,18 @@ void main() {
     expect(find.text('Alice'), findsWidgets);
     expect(find.text('Hey!'), findsOneWidget);
 
+    // Regression: the nav capsule must hug the bottom of the screen. A bare
+    // Center inside Scaffold.bottomNavigationBar expands to the full screen
+    // height, centering the capsule vertically and crushing the body to zero
+    // height (so tabs render nothing).
+    final screenHeight = tester.getSize(find.byType(MaterialApp)).height;
+    final capsuleCenter =
+        tester.getCenter(find.byIcon(Icons.chat_bubble_outline_rounded));
+    expect(capsuleCenter.dy, greaterThan(screenHeight * 0.7),
+        reason: 'nav capsule must sit at the bottom, not mid-screen');
+    expect(capsuleCenter.dy, lessThan(screenHeight * 0.95),
+        reason: 'nav capsule must stay clear of the very edge');
+
     // Floating capsule nav bar is present with all 4 destinations.
     expect(find.byIcon(Icons.chat_bubble_outline_rounded), findsOneWidget);
     expect(find.byIcon(Icons.people_outline_rounded), findsOneWidget);
