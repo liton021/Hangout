@@ -27,6 +27,10 @@ Your instinct is correct. Agora is the most battle‑tested RTC provider for And
 ### 1.2 Flutter SDK (verified current)
 
 - Package: **`agora_rtc_engine`** — version **6.6.3**, published by **verified publisher `agora.io`**.
+  > ⚠️ **Update (Aug 2026):** the app now pins **`^6.5.4`** — 6.6.2+ depends on
+  > `ffi ^1.1.2`, which conflicts with `flutter_local_notifications`'s Linux
+  > implementation (`ffi ^2.0.1`) and breaks `flutter pub get`. 6.5.4 is the
+  > newest stable (published after 6.6.3), uses `ffi 2.x` and keeps the same 6.x API.
 - Supports Android, iOS, macOS, Windows, Web (web is alpha — irrelevant for your Android‑only app).
 - Built on Agora Native SDK 4.x.
 

@@ -31,8 +31,12 @@ dependencies:
   # updating the Flutter version in .github/workflows/build.yml.
   flutter_foreground_task: ^9.2.2
 
-  # Agora — audio/video calls + AI noise suppression + video filters
-  agora_rtc_engine: ^6.6.3
+  # Agora — audio/video calls + AI noise suppression + video filters.
+  # NOTE: 6.6.2+ depends on ffi ^1.1.2, which conflicts with
+  # flutter_local_notifications' Linux impl (ffi ^2.0.1) and breaks
+  # dependency resolution. 6.5.4 is the newest stable (published May 2026,
+  # after 6.6.3), uses ffi 2.x, and keeps the same 6.x API.
+  agora_rtc_engine: ^6.5.4
 
   # Utilities
   permission_handler: ^11.3.1
