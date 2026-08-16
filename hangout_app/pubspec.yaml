@@ -4,7 +4,8 @@ publish_to: "none"
 version: 1.0.0+1
 
 environment:
-  # flutter_foreground_task 10.x needs Dart 3.4+ (Flutter 3.22+).
+  # flutter_foreground_task 9.x needs Dart 3.4+ (Flutter 3.22+); matches the
+  # CI's Flutter 3.24.0.
   sdk: ">=3.4.0 <4.0.0"
 
 dependencies:
@@ -25,7 +26,10 @@ dependencies:
   # foreground service that keeps the socket alive in the background.
   web_socket_channel: ^3.0.1
   flutter_local_notifications: ^18.0.1
-  flutter_foreground_task: ^10.0.0
+  # 9.2.2 is the newest release that still supports the CI's Flutter 3.24.0
+  # (10.x requires Flutter >=3.38.0). Do not bump past 9.x without also
+  # updating the Flutter version in .github/workflows/build.yml.
+  flutter_foreground_task: ^9.2.2
 
   # Agora — audio/video calls + AI noise suppression + video filters
   agora_rtc_engine: ^6.6.3
