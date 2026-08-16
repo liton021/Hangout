@@ -1,5 +1,8 @@
 # Push notifications without Firebase/FCM — free options & what Hangout uses
 
+> **Status (17 Aug 2026):** implemented in the app + Cloudflare Worker and
+> ready to deploy — see "What you need to do" in the app README.
+
 **Context:** the Hangout app needs push for messages and incoming calls, for
 free, without Firebase Cloud Messaging. In this project's Firebase console the
 "Cloud Messaging API (Legacy)" toggle is broken (enable shows an error), and
