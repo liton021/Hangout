@@ -127,9 +127,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 }
 
 // ───────────────────────────────────────────────────────────────────────────
-// Bottom navigation — capsule bar, identical on every tab (report §6.3).
-// Fully rounded corners; the selected tab shows a filled pale-mint circle
-// behind the icon only, with the label staying below it.
+// Bottom navigation — compact icon-only capsule, identical on every tab.
+// Fully rounded; the selected tab shows a filled pale-mint circle behind
+// the icon. Labels are removed (icons + tooltips carry the meaning).
 // ───────────────────────────────────────────────────────────────────────────
 class _FloatingNavBar extends StatelessWidget {
   const _FloatingNavBar({required this.selectedIndex, required this.onSelected});
@@ -154,36 +154,32 @@ class _FloatingNavBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final dark = Theme.of(context).brightness == Brightness.dark;
-    final barRadius = 36.0; // 72px tall -> perfectly rounded capsule
-
-    return Container(
-      margin: const EdgeInsets.fromLTRB(12, 0, 12, 12),
-      decoration: BoxDecoration(
-        color: dark ? AppColors.darkSurface : Colors.white,
-        borderRadius: BorderRadius.circular(barRadius),
-        boxShadow: AppColors.floatingShadow,
-        border: Border.all(
-          color: dark ? Colors.white.withOpacity(.07) : Colors.white,
-        ),
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(barRadius),
-        child: SizedBox(
-          height: 72,
-          child: Row(
-            children: [
-              for (var i = 0; i < _labels.length; i++)
-                Expanded(
-                  child: _NavItem(
-                    icon: _icons[i],
-                    selectedIcon: _selectedIcons[i],
-                    label: _labels[i],
-                    selected: selectedIndex == i,
-                    onTap: () => onSelected(i),
-                  ),
-                ),
-            ],
+    return Center(
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 14),
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 7),
+        decoration: BoxDecoration(
+          color: dark ? AppColors.darkSurface : Colors.white,
+          borderRadius: BorderRadius.circular(999),
+          boxShadow: AppColors.floatingShadow,
+          border: Border.all(
+            color: dark ? Colors.white.withOpacity(.07) : Colors.white,
           ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            for (var i = 0; i < _labels.length; i++) ...[
+              if (i > 0) const SizedBox(width: 2),
+              _NavItem(
+                icon: _icons[i],
+                selectedIcon: _selectedIcons[i],
+                label: _labels[i],
+                selected: selectedIndex == i,
+                onTap: () => onSelected(i),
+              ),
+            ],
+          ],
         ),
       ),
     );
@@ -210,40 +206,26 @@ class _NavItem extends StatelessWidget {
     final dark = Theme.of(context).brightness == Brightness.dark;
     final idleColor = dark ? Colors.white54 : AppColors.sageGray;
 
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(20),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          AnimatedContainer(
-            duration: const Duration(milliseconds: 200),
-            curve: Curves.easeOut,
-            width: 46,
-            height: 46,
-            decoration: BoxDecoration(
-              color: selected ? AppColors.paleMint : Colors.transparent,
-              shape: BoxShape.circle,
-            ),
-            child: Icon(
-              selected ? selectedIcon : icon,
-              size: 24,
-              color: selected ? AppColors.teal : idleColor,
-            ),
+    return Tooltip(
+      message: label,
+      child: InkWell(
+        onTap: onTap,
+        customBorder: const CircleBorder(),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          curve: Curves.easeOut,
+          width: 46,
+          height: 46,
+          decoration: BoxDecoration(
+            color: selected ? AppColors.paleMint : Colors.transparent,
+            shape: BoxShape.circle,
           ),
-          const SizedBox(height: 2),
-          AnimatedDefaultTextStyle(
-            duration: const Duration(milliseconds: 200),
-            curve: Curves.easeOut,
-            style: TextStyle(
-              fontSize: 11,
-              height: 1,
-              fontWeight: selected ? FontWeight.w800 : FontWeight.w600,
-              color: selected ? AppColors.teal : idleColor,
-            ),
-            child: Text(label),
+          child: Icon(
+            selected ? selectedIcon : icon,
+            size: 24,
+            color: selected ? AppColors.teal : idleColor,
           ),
-        ],
+        ),
       ),
     );
   }
