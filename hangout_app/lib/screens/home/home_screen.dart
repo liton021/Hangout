@@ -10,6 +10,7 @@ import '../../providers/providers.dart';
 import '../../services/permission_service.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/avatar.dart';
+import '../../widgets/gradient_button.dart';
 import '../../widgets/search_pill.dart';
 import '../call/audio_call_screen.dart';
 import '../call/video_call_screen.dart';
@@ -368,11 +369,13 @@ class _ChatsTab extends ConsumerWidget {
             error: (e, _) => _ErrorState(message: '$e'),
             data: (list) {
               if (list.isEmpty) {
-                return const _EmptyState(
+                return _EmptyState(
                   icon: Icons.chat_bubble_outline_rounded,
                   title: 'Your chats live here',
                   subtitle:
-                      'Choose someone from People and start a conversation.',
+                      'Start a conversation with any Hangout friend — they’ll show up here.',
+                  actionLabel: 'Start a chat',
+                  onAction: onNewChat,
                 );
               }
               return ValueListenableBuilder<TextEditingValue>(
@@ -734,10 +737,14 @@ class _EmptyState extends StatelessWidget {
     required this.icon,
     required this.title,
     required this.subtitle,
+    this.actionLabel,
+    this.onAction,
   });
   final IconData icon;
   final String title;
   final String subtitle;
+  final String? actionLabel;
+  final VoidCallback? onAction;
 
   @override
   Widget build(BuildContext context) {
@@ -770,6 +777,15 @@ class _EmptyState extends StatelessWidget {
                 height: 1.45,
               ),
             ),
+            if (actionLabel != null && onAction != null) ...[
+              const SizedBox(height: 24),
+              GradientButton(
+                label: actionLabel,
+                icon: Icons.add_rounded,
+                height: 52,
+                onPressed: onAction,
+              ),
+            ],
           ],
         ),
       ),
