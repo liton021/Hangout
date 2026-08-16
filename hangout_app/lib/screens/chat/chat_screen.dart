@@ -348,12 +348,32 @@ class _Composer extends StatefulWidget {
 
 class _ComposerState extends State<_Composer> {
   bool _emojiOpen = false;
+  final _focusNode = FocusNode();
 
   static const _emojiList = [
     '😀', '😂', '😍', '🥰', '😎', '🤔', '🤗',
     '👍', '🙏', '👏', '🎉', '❤️', '🔥', '💯',
     '🌊', '☕', '🎧', '🎵', '⚽', '🌙',
   ];
+
+  /// True while the text field has focus — the box morphs from a fixed
+  /// fully-rounded pill into a rectangular input while typing.
+  bool get _focused => _focusNode.hasFocus;
+
+  @override
+  void initState() {
+    super.initState();
+    _focusNode.addListener(_handleFocusChanged);
+  }
+
+  void _handleFocusChanged() => setState(() {});
+
+  @override
+  void dispose() {
+    _focusNode.removeListener(_handleFocusChanged);
+    _focusNode.dispose();
+    super.dispose();
+  }
 
   void _insertEmoji(String emoji) {
     final text = widget.controller.text;
@@ -458,17 +478,28 @@ class _ComposerState extends State<_Composer> {
                 )
               : const SizedBox(width: double.infinity),
         ),
-        Container(
+        // Composer box: fixed pill when idle, morphs into a rectangle on
+        // focus (rounded 999 → 14) and grows up to 5 lines while typing.
+        AnimatedContainer(
+          duration: const Duration(milliseconds: 220),
+          curve: Curves.easeOutCubic,
           margin: const EdgeInsets.fromLTRB(12, 0, 12, 10),
-          padding: const EdgeInsets.fromLTRB(6, 6, 6, 6),
+          padding: EdgeInsets.symmetric(
+            horizontal: 6,
+            vertical: _focused ? 8 : 5,
+          ),
           decoration: BoxDecoration(
             color: dark ? AppColors.darkSurface : Colors.white,
-            borderRadius: BorderRadius.circular(24),
+            borderRadius: BorderRadius.circular(_focused ? 14 : 999),
             boxShadow: AppColors.floatingShadow,
             border: Border.all(
-              color: dark
-                  ? Colors.white.withOpacity(.07)
-                  : AppColors.teal.withOpacity(.14),
+              color: _focused
+                  ? (dark
+                      ? AppColors.softAqua.withOpacity(.5)
+                      : AppColors.teal.withOpacity(.45))
+                  : (dark
+                      ? Colors.white.withOpacity(.07)
+                      : AppColors.teal.withOpacity(.14)),
             ),
           ),
           child: SafeArea(
@@ -490,8 +521,10 @@ class _ComposerState extends State<_Composer> {
                 Expanded(
                   child: TextField(
                     controller: widget.controller,
+                    focusNode: _focusNode,
                     minLines: 1,
-                    maxLines: 5,
+                    // Fixed single line while idle; grows when typing.
+                    maxLines: _focused ? 5 : 1,
                     textCapitalization: TextCapitalization.sentences,
                     textInputAction: TextInputAction.newline,
                     decoration: const InputDecoration(
