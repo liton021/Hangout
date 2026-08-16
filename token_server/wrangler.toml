@@ -5,4 +5,7 @@ compatibility_date = "2025-01-01"
 # Secrets (do NOT put values here — set them with:
 #   npx wrangler secret put AGORA_APP_ID
 #   npx wrangler secret put AGORA_APP_CERTIFICATE
+#   npx wrangler secret put FCM_SERVER_KEY
 # )
+# FCM_SERVER_KEY: Firebase Console → Project settings → Cloud Messaging →
+#   Cloud Messaging API (Legacy) → Server key (free Spark plan, no card).

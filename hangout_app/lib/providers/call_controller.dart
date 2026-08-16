@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../models/app_user.dart';
 import '../models/call_data.dart';
+import '../services/push_sender.dart';
 import 'providers.dart';
 
 /// State of the call signaling controller.
@@ -83,7 +84,31 @@ class CallController extends StateNotifier<CallControllerState> {
       createdAt: DateTime.now(),
     );
     await ref.set(call.toMap());
+    _sendCallPush(call, callee);
     return call;
+  }
+
+  /// Fires the FCM push to the callee via the free Cloudflare Worker so the
+  /// incoming call rings even when the callee's app is killed/backgrounded.
+  /// Runs fire-and-forget — the Firestore signaling still works without it.
+  Future<void> _sendCallPush(CallData call, AppUser callee) async {
+    try {
+      // Fetch the callee's FCM token from their user doc.
+      final userDoc = await _db.collection('users').doc(callee.uid).get();
+      final token = userDoc.data()?['fcmToken'] as String?;
+      if (token == null || token.isEmpty) return;
+
+      await PushSender.sendCallPush(
+        calleeFcmToken: token,
+        callId: call.id,
+        channelName: call.channelName,
+        callerId: call.callerId,
+        callerName: call.callerName,
+        isVideo: call.type == CallType.video,
+      );
+    } catch (_) {
+      // Ignore — the in-app Firestore signaling still works.
+    }
   }
 
   /// Callee accepts the incoming call.

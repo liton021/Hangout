@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../models/chat_message.dart';
 import '../models/chat_summary.dart';
+import 'push_sender.dart';
 
 /// Firestore-backed 1-on-1 messaging.
 ///
@@ -58,6 +59,44 @@ class ChatService {
       'lastMessageAt': now,
       'lastSenderId': authorId,
     }, SetOptions(merge: true));
+
+    _sendMessagePush(chatId, authorId, text);
+  }
+
+  /// Fires the FCM push to the other participant via the free Cloudflare
+  /// Worker so they get a notification even if their app is killed. Runs
+  /// fire-and-forget — the message itself is already in Firestore.
+  Future<void> _sendMessagePush(
+      String chatId, String authorId, String text) async {
+    try {
+      // Find the recipient (the participant who is NOT the sender).
+      final chatDoc = await _db.collection('chats').doc(chatId).get();
+      if (!chatDoc.exists) return;
+      final participants =
+          (chatDoc.data()?['participants'] as List?)?.cast<String>() ?? [];
+      final recipientId =
+          participants.where((id) => id != authorId).firstOrNull;
+      if (recipientId == null) return;
+
+      // Fetch the recipient's FCM token.
+      final userDoc = await _db.collection('users').doc(recipientId).get();
+      final token = userDoc.data()?['fcmToken'] as String?;
+      if (token == null || token.isEmpty) return;
+
+      final senderName =
+          (await _db.collection('users').doc(authorId).get()).data()?['name']
+              as String? ?? 'Someone';
+
+      await PushSender.sendMessagePush(
+        recipientFcmToken: token,
+        chatId: chatId,
+        senderId: authorId,
+        senderName: senderName,
+        text: text,
+      );
+    } catch (_) {
+      // Ignore — the message is already saved; push is best-effort.
+    }
   }
 
   /// Live count of messages in [chatId] that [myUid] hasn't read yet.
