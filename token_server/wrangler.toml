@@ -2,6 +2,26 @@ name = "hangout-token-server"
 main = "worker.js"
 compatibility_date = "2025-01-01"
 
+# ─────────────────────────────────────────────────────────────────────
+# Push/signaling config (free plan — no billing)
+# ─────────────────────────────────────────────────────────────────────
+
+# Firebase project id — used ONLY to verify the app's Firebase Auth ID
+# tokens (Google public certs). No Firebase console changes, no Cloud
+# Messaging API, no service account, no billing.
+# Replace with your own project id if you fork the app.
+[vars]
+FIREBASE_PROJECT_ID = "litonsgembd"
+
+# One Durable Object per user id = that user's push "mailbox".
+[[durable_objects.bindings]]
+name = "PUSH_ROOM"
+class_name = "PushRoom"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["PushRoom"]
+
 # Secrets (do NOT put values here — set them with:
 #   npx wrangler secret put AGORA_APP_ID
 #   npx wrangler secret put AGORA_APP_CERTIFICATE
