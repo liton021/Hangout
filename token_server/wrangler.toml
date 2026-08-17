@@ -14,9 +14,18 @@ compatibility_date = "2025-01-01"
 FIREBASE_PROJECT_ID = "litonsgembd"
 
 # One Durable Object per user id = that user's push "mailbox".
+# The binding (below) makes `env.PUSH_ROOM` available to the code; the
+# [exports.PushRoom] block declares the class and tells Cloudflare to
+# provision a SQLite-backed namespace for it automatically on deploy.
+# (This is the modern replacement for [[migrations]] — see
+# https://developers.cloudflare.com/durable-objects/reference/durable-objects-migrations/)
 [[durable_objects.bindings]]
 name = "PUSH_ROOM"
 class_name = "PushRoom"
+
+[exports.PushRoom]
+type = "durable-object"
+storage = "sqlite"
 
 # ─────────────────────────────────────────────────────────────────────
 # Profile pictures (avatar hosting)
@@ -27,9 +36,19 @@ class_name = "PushRoom"
 #   • otherwise         → Workers KV (1 GB, 1,000 writes/day, NO card)
 #
 # Default = KV, so the whole feature works without any billing setup.
-# Create the namespace once, then paste the printed id below:
+#
+# ⚠️ You MUST put your real namespace id here before `wrangler deploy`,
+# otherwise the deploy fails (or deploys without avatar storage).
+# If you already created the namespace in the dashboard (named
+# `hangout-avatars`), find its id with:
+#
+#   npx wrangler kv namespace list
+#
+# …and paste it below. If you don't have one yet, create it with:
 #
 #   npx wrangler kv namespace create AVATARS_KV
+#
+# …and paste the printed id below.
 #
 [[kv_namespaces]]
 binding = "AVATARS_KV"
@@ -43,11 +62,10 @@ id = "PASTE_YOUR_KV_NAMESPACE_ID_HERE"
 # binding = "AVATARS_R2"
 # bucket_name = "hangout-avatars"
 
-[[migrations]]
-tag = "v1"
-new_sqlite_classes = ["PushRoom"]
-
 # Secrets (do NOT put values here — set them with:
 #   npx wrangler secret put AGORA_APP_ID
 #   npx wrangler secret put AGORA_APP_CERTIFICATE
 # )
+#
+# Note: `[[migrations]]` is no longer used — the [exports.PushRoom] block
+# above provisions the Durable Object namespace on deploy instead.
