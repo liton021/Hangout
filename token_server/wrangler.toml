@@ -18,6 +18,31 @@ FIREBASE_PROJECT_ID = "litonsgembd"
 name = "PUSH_ROOM"
 class_name = "PushRoom"
 
+# ─────────────────────────────────────────────────────────────────────
+# Profile pictures (avatar hosting)
+# ─────────────────────────────────────────────────────────────────────
+#
+# The Worker picks its storage automatically:
+#   • AVATARS_R2 bound  → R2 is used (10 GB free, needs a card on file)
+#   • otherwise         → Workers KV (1 GB, 1,000 writes/day, NO card)
+#
+# Default = KV, so the whole feature works without any billing setup.
+# Create the namespace once, then paste the printed id below:
+#
+#   npx wrangler kv namespace create AVATARS_KV
+#
+[[kv_namespaces]]
+binding = "AVATARS_KV"
+id = "PASTE_YOUR_KV_NAMESPACE_ID_HERE"
+
+# OPTIONAL upgrade path — uncomment after `npx wrangler r2 bucket create
+# hangout-avatars` (requires a card on file). The Worker prefers R2 the
+# moment this binding exists; the app needs no changes.
+#
+# [[r2_buckets]]
+# binding = "AVATARS_R2"
+# bucket_name = "hangout-avatars"
+
 [[migrations]]
 tag = "v1"
 new_sqlite_classes = ["PushRoom"]
