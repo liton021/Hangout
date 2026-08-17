@@ -90,7 +90,8 @@ Durable Objects namespaces"* — that's normal. Namespaces are created
 class**, so the correct path is to deploy with `wrangler` (below). This one
 deploy does everything at once:
 
-1. **Install Node.js** if you don't have it (https://nodejs.org).
+1. **Install Node.js v22+** if you don't have it (https://nodejs.org — pick
+   the LTS, which is v22 or newer; wrangler no longer supports Node 20).
 
 2. From the `token_server/` folder, log in:
 

@@ -61,7 +61,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22        # wrangler requires Node.js v22+ (v20 fails)
 
       - name: Ensure AVATARS_KV namespace exists and patch wrangler.toml
         run: node token_server/scripts/ensure-kv.mjs
