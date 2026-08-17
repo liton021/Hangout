@@ -1,0 +1,63 @@
+name: Deploy token server
+
+# One-click deploy — no terminal needed:
+#   1. Actions tab → "Deploy token server" → "Run workflow"
+# Or it also deploys automatically on every push that touches token_server/.
+#
+# This is the ONLY way to create the PUSH_ROOM Durable Object namespace —
+# the Cloudflare dashboard cannot create namespaces; `wrangler deploy` can.
+# The same deploy also applies FIREBASE_PROJECT_ID and the AVATARS_KV
+# binding (the script finds or creates the KV namespace automatically).
+#
+# Required repo secrets (Settings → Secrets and variables → Actions):
+#   CLOUDFLARE_API_TOKEN   — dash.cloudflare.com → My Profile →
+#                            API Tokens → Create Token → "Edit Cloudflare
+#                            Workers" template
+#   CLOUDFLARE_ACCOUNT_ID  — dash.cloudflare.com → Workers & Pages →
+#                            right sidebar "Account ID"
+
+on:
+  workflow_dispatch:        # the "Run workflow" button
+  push:
+    branches: [main, 'arena/**']
+    paths: ['token_server/**']
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Ensure AVATARS_KV namespace exists and patch wrangler.toml
+        run: node token_server/scripts/ensure-kv.mjs
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+      - name: Deploy with wrangler (creates PUSH_ROOM namespace)
+        working-directory: token_server
+        run: npx --yes wrangler@latest deploy
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+      - name: Verify deployment self-check
+        run: |
+          URL="https://hangout-token-server.onelitonbd.workers.dev/"
+          BODY=$(curl -fsS "$URL")
+          echo "$BODY"
+          echo "$BODY" | grep -q '"pushRoomConfigured":true' || {
+            echo "::error::pushRoomConfigured is not true — check the deploy log."
+            exit 1
+          }
+          echo "$BODY" | grep -q '"firebaseProjectIdConfigured":true' || {
+            echo "::error::firebaseProjectIdConfigured is not true."
+            exit 1
+          }
+          echo "Deployment verified OK ✅"
