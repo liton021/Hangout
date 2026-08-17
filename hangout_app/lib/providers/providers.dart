@@ -13,6 +13,7 @@ import '../services/avatar_service.dart';
 import '../services/chat_service.dart';
 import '../services/push_service.dart';
 import '../services/user_service.dart';
+import '../services/voice_note_service.dart';
 
 // ---------------------------------------------------------------------------
 // App appearance
@@ -93,6 +94,23 @@ final avatarServiceProvider = Provider<AvatarService>((ref) {
       }
     },
   );
+});
+
+/// Voice notes — recording plus upload to the same Cloudflare Worker.
+final voiceNoteServiceProvider = Provider<VoiceNoteService>((ref) {
+  final service = VoiceNoteService(
+    idTokenProvider: () async {
+      final user = ref.read(authServiceProvider).currentUser;
+      try {
+        return await user?.getIdToken();
+      } catch (_) {
+        return null;
+      }
+    },
+  );
+  // Release the native recorder when the provider is torn down.
+  ref.onDispose(service.dispose);
+  return service;
 });
 
 /// FCM-free push: WebSocket to the Cloudflare Worker + local notifications.

@@ -23,6 +23,8 @@
  *                           → { url } ; the app stores that URL on the user's
  *                             Firestore document (`users/{uid}.avatarUrl`).
  *   GET    /avatar/<uid>/<hash>.<ext>   public, immutable, cached forever.
+ *   POST   /voice                       upload a voice note (auth required).
+ *   GET    /voice/<uid>/<hash>.<ext>    public; auto-expires after 30 days.
  *   DELETE /avatar          removes the caller's picture.
  *
  *   Storage is pluggable and picked automatically at runtime:
@@ -384,9 +386,42 @@ const EXT_TO_TYPE = {
 /** Cache-Control for immutable, content-addressed avatar objects. */
 const AVATAR_CACHE_CONTROL = 'public, max-age=31536000, immutable';
 
+/* ---------------- voice notes ---------------- */
+
+/**
+ * Voice notes are capped hard: the app records mono AAC at 32 kbps and stops
+ * at 2 minutes, which lands around 480 KB worst case.
+ */
+const VOICE_MAX_BYTES = 1024 * 1024; // 1 MB
+const VOICE_MAX_SECONDS = 120;
+
+/**
+ * Voice notes expire after 30 days. This is what keeps the card-free 1 GB KV
+ * tier viable: storage reaches a steady state instead of growing forever.
+ */
+const VOICE_TTL_SECONDS = 30 * 24 * 60 * 60;
+
+const VOICE_TYPES = {
+  'audio/mp4': 'm4a',   // AAC-LC in an MP4 container (Android/iOS default)
+  'audio/aac': 'm4a',
+  'audio/mpeg': 'mp3',
+  'audio/ogg': 'ogg',   // Opus, when the device supports it
+};
+
+const VOICE_EXT_TO_TYPE = {
+  m4a: 'audio/mp4',
+  mp3: 'audio/mpeg',
+  ogg: 'audio/ogg',
+};
+
+const VOICE_RATE_LIMIT = 30; // uploads per minute per user
+
 /**
  * Picks the storage backend. R2 wins when its binding exists so you can add
  * a bucket later without touching the app; KV is the no-credit-card default.
+ *
+ * The same bucket/namespace backs both avatars (`avatars/…`) and voice notes
+ * (`voice/…`) — they are just different key prefixes.
  */
 function avatarStore(env) {
   if (env.AVATARS_R2) return { kind: 'r2', bucket: env.AVATARS_R2 };
@@ -406,21 +441,40 @@ function avatarKey(uid, hash, ext) {
   return `avatars/${uid}/${hash}.${ext}`;
 }
 
-async function putAvatar(store, key, bytes, contentType) {
+/**
+ * Writes an object. `ttlSeconds` (optional) makes KV expire the value
+ * automatically — that is how voice notes stay inside the 1 GB free tier
+ * without any cleanup job. R2 has no per-object TTL, so there the expiry is
+ * recorded as metadata and enforced lazily on read.
+ */
+async function putAvatar(store, key, bytes, contentType, ttlSeconds) {
+  const expiresAt = ttlSeconds ? Date.now() + ttlSeconds * 1000 : null;
+
   if (store.kind === 'r2') {
     await store.bucket.put(key, bytes, {
       httpMetadata: { contentType, cacheControl: AVATAR_CACHE_CONTROL },
+      customMetadata: expiresAt ? { expiresAt: String(expiresAt) } : undefined,
     });
     return;
   }
-  // KV values are capped at 25 MB; our 512 KB limit is well inside that.
-  await store.kv.put(key, bytes, { metadata: { contentType } });
+  // KV values are capped at 25 MB; our limits are well inside that.
+  // KV requires expirationTtl >= 60s.
+  const options = { metadata: { contentType, expiresAt } };
+  if (ttlSeconds && ttlSeconds >= 60) options.expirationTtl = ttlSeconds;
+  await store.kv.put(key, bytes, options);
 }
 
 async function getAvatar(store, key) {
   if (store.kind === 'r2') {
     const object = await store.bucket.get(key);
     if (!object) return null;
+    // R2 has no native TTL — enforce the recorded expiry on read and reclaim
+    // the space lazily.
+    const expiresAt = parseInt(object.customMetadata?.expiresAt || '0', 10);
+    if (expiresAt && Date.now() > expiresAt) {
+      await store.bucket.delete(key).catch(() => {});
+      return null;
+    }
     return {
       body: object.body,
       contentType: object.httpMetadata?.contentType || 'application/octet-stream',
@@ -483,6 +537,44 @@ function sniffImageType(bytes) {
     return 'image/webp';
   }
   return null;
+}
+
+/**
+ * Sniffs the real audio type from magic bytes, so a caller cannot smuggle
+ * arbitrary content in by mislabelling the Content-Type.
+ */
+function sniffAudioType(bytes) {
+  // ISO-BMFF / MP4: bytes 4..7 are 'ftyp'. Covers m4a/aac from both platforms.
+  if (
+    bytes.length >= 12 &&
+    bytes[4] === 0x66 && bytes[5] === 0x74 && bytes[6] === 0x79 && bytes[7] === 0x70
+  ) {
+    return 'audio/mp4';
+  }
+  // OggS — Opus/Vorbis.
+  if (
+    bytes.length >= 4 &&
+    bytes[0] === 0x4f && bytes[1] === 0x67 && bytes[2] === 0x67 && bytes[3] === 0x53
+  ) {
+    return 'audio/ogg';
+  }
+  // ID3-tagged MP3.
+  if (
+    bytes.length >= 3 &&
+    bytes[0] === 0x49 && bytes[1] === 0x44 && bytes[2] === 0x33
+  ) {
+    return 'audio/mpeg';
+  }
+  // Raw MPEG frame sync (0xFFEx / 0xFFFx).
+  if (bytes.length >= 2 && bytes[0] === 0xff && (bytes[1] & 0xe0) === 0xe0) {
+    return 'audio/mpeg';
+  }
+  return null;
+}
+
+/** `voice/<uid>/<hash>.<ext>` — the object key for a voice note. */
+function voiceKey(uid, hash, ext) {
+  return `voice/${uid}/${hash}.${ext}`;
 }
 
 /* ------------------------------------------------------------------ */
@@ -729,6 +821,124 @@ export default {
       });
     }
 
+    /* ---------------- /voice (voice notes) ---------------- */
+
+    // Public read: GET /voice/<uid>/<hash>.<ext>
+    // No auth — the URL is unguessable (content hash) and is fetched by the
+    // recipient's audio player, which cannot attach headers.
+    if (url.pathname.startsWith('/voice/')) {
+      if (request.method !== 'GET' && request.method !== 'HEAD') {
+        return json({ error: 'Use GET /voice/<uid>/<hash>.<ext>' }, 405);
+      }
+      const store = avatarStore(env);
+      if (!store) return json({ error: 'Voice storage is not configured.' }, 501);
+
+      const match = url.pathname.match(
+        /^\/voice\/([A-Za-z0-9_-]{1,128})\/([a-f0-9]{16})\.(m4a|mp3|ogg)$/,
+      );
+      if (!match) return json({ error: 'Not found.' }, 404);
+
+      const [, uid, hash, ext] = match;
+      const object = await getAvatar(store, voiceKey(uid, hash, ext));
+      if (!object) {
+        // Either never existed or aged out of the 30-day window.
+        return json({ error: 'This voice message has expired.' }, 404);
+      }
+
+      const etag = object.etag || `"${hash}"`;
+      if (request.headers.get('If-None-Match') === etag) {
+        return new Response(null, {
+          status: 304,
+          headers: { ETag: etag, 'Cache-Control': AVATAR_CACHE_CONTROL },
+        });
+      }
+
+      return new Response(request.method === 'HEAD' ? null : object.body, {
+        headers: {
+          'Content-Type': object.contentType || VOICE_EXT_TO_TYPE[ext],
+          'Cache-Control': AVATAR_CACHE_CONTROL,
+          ETag: etag,
+          'X-Content-Type-Options': 'nosniff',
+          'Access-Control-Allow-Origin': '*',
+          // Players seek; advertising range support avoids a full refetch.
+          'Accept-Ranges': 'bytes',
+        },
+      });
+    }
+
+    // Upload a voice note: POST /voice (raw audio bytes).
+    if (url.pathname === '/voice') {
+      const store = avatarStore(env);
+      if (!store) {
+        return json(
+          {
+            error:
+              'Voice storage is not configured: bind AVATARS_KV (or AVATARS_R2) in the dashboard.',
+          },
+          501,
+        );
+      }
+
+      let claims;
+      try {
+        claims = await verifyFirebaseIdToken(bearer(request), env.FIREBASE_PROJECT_ID);
+      } catch (e) {
+        return json({ error: `Unauthorized: ${e.message}` }, 401);
+      }
+      const uid = claims.sub;
+
+      if (request.method !== 'POST') {
+        return json({ error: 'Use POST /voice' }, 405);
+      }
+      if (rateLimited(uid, { bucket: 'voice', limit: VOICE_RATE_LIMIT })) {
+        return json({ error: 'Too many voice messages — please wait a minute.' }, 429);
+      }
+
+      const declared = parseInt(request.headers.get('Content-Length') || '0', 10);
+      if (declared > VOICE_MAX_BYTES) {
+        return json({ error: `Voice note too large (max ${VOICE_MAX_BYTES / 1024} KB).` }, 413);
+      }
+
+      const declaredType = (request.headers.get('Content-Type') || '')
+        .split(';')[0]
+        .trim()
+        .toLowerCase();
+      if (!VOICE_TYPES[declaredType]) {
+        return json(
+          { error: 'Unsupported Content-Type. Use audio/mp4, audio/aac, audio/mpeg or audio/ogg.' },
+          415,
+        );
+      }
+
+      const bytes = new Uint8Array(await request.arrayBuffer());
+      if (bytes.length === 0) return json({ error: 'Empty body.' }, 400);
+      if (bytes.length > VOICE_MAX_BYTES) {
+        return json({ error: `Voice note too large (max ${VOICE_MAX_BYTES / 1024} KB).` }, 413);
+      }
+
+      const actualType = sniffAudioType(bytes);
+      if (!actualType) return json({ error: 'Body is not a recognised audio file.' }, 415);
+
+      const ext = VOICE_TYPES[actualType];
+      const hash = await shortHash(bytes);
+      const key = voiceKey(uid, hash, ext);
+
+      // Unlike avatars, previous notes are NOT deleted — each is its own
+      // message. The 30-day TTL is what bounds total storage.
+      await putAvatar(store, key, bytes, actualType, VOICE_TTL_SECONDS);
+
+      const publicUrl = `${url.origin}/voice/${uid}/${hash}.${ext}`;
+      return json({
+        ok: true,
+        url: publicUrl,
+        key,
+        size: bytes.length,
+        contentType: actualType,
+        storage: store.kind,
+        expiresInDays: VOICE_TTL_SECONDS / 86400,
+      });
+    }
+
     /* ---------------- /ws (device mailbox connection) ---------------- */
     if (url.pathname === '/ws') {
       const uid = (url.searchParams.get('uid') || '').trim();
@@ -750,8 +960,12 @@ export default {
           'POST /avatar (raw image bytes, Authorization: Bearer <id-token>) → { url }',
           'DELETE /avatar (remove your picture, Authorization: Bearer <id-token>)',
           'GET /avatar/<uid>/<hash>.<ext> (public profile picture)',
+          'POST /voice (raw audio bytes, Authorization: Bearer <id-token>) → { url }',
+          'GET /voice/<uid>/<hash>.<ext> (public voice note, expires after 30 days)',
         ],
         avatarStorage: avatarStore(env)?.kind ?? 'not configured',
+        voiceStorage: avatarStore(env)?.kind ?? 'not configured',
+        voiceRetentionDays: VOICE_TTL_SECONDS / 86400,
       });
     }
 

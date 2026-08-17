@@ -48,6 +48,15 @@ dependencies:
   # and JPEG re-encode so uploads stay ~60 KB.
   image: ^4.5.4
 
+  # Voice notes: record mono AAC and play it back.
+  # record 6.2.1 is the newest that still supports Dart 3.5 (7.x needs 3.12);
+  # audioplayers 6.4.0 likewise (6.5+ needs Dart 3.6). Bump both only together
+  # with the Flutter version in .github/workflows/build.yml.
+  record: ^6.2.1
+  audioplayers: ^6.4.0
+  # Somewhere to write the recording before upload.
+  path_provider: ^2.1.4
+
   # Utilities
   permission_handler: ^11.3.1
   intl: ^0.19.0

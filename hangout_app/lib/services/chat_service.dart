@@ -42,12 +42,19 @@ class ChatService {
   }
 
   /// Sends a message and bumps the chat's last-message summary.
+  ///
+  /// Pass [audioUrl] and [audioSeconds] to send a voice note instead of text;
+  /// [text] then acts as the fallback label shown in the chat list and in
+  /// notifications.
   Future<void> sendMessage({
     required String chatId,
     required String authorId,
     required String authorName,
     required String text,
+    String? audioUrl,
+    int audioSeconds = 0,
   }) async {
+    final isVoice = (audioUrl ?? '').isNotEmpty;
     final msgRef = _db
         .collection('chats')
         .doc(chatId)
@@ -60,6 +67,9 @@ class ChatService {
       authorId: authorId,
       text: text,
       sentAt: now,
+      kind: isVoice ? MessageKind.voice : MessageKind.text,
+      audioUrl: audioUrl,
+      audioSeconds: audioSeconds,
     ).toMap());
 
     await _db.collection('chats').doc(chatId).set({
@@ -87,6 +97,7 @@ class ChatService {
           'senderName': authorName,
           'text': text,
           'sentAt': now.millisecondsSinceEpoch,
+          if (isVoice) 'kind': 'voice',
         },
       );
     }

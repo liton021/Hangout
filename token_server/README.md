@@ -128,7 +128,50 @@ send it a message/call from another.
   served `Cache-Control: public, max-age=31536000, immutable` with an ETag.
   Changing your picture produces a *new* URL, so caches never go stale.
 
-## Avatar storage: KV vs R2
+### `POST /voice` — upload a voice note
+
+- Requires `Authorization: Bearer <firebase-id-token>`.
+- Body: **raw audio bytes**, with `Content-Type: audio/mp4` (what the app
+  sends), `audio/aac`, `audio/mpeg` or `audio/ogg`.
+- Max 1 MB. The app records mono AAC at 32 kbps and stops at 2 minutes, so a
+  worst-case note is around 480 KB.
+- As with images, the format is verified from the magic bytes, not the header.
+- Returns `{ "url": "https://…/voice/<uid>/<hash>.m4a", "expiresInDays": 30 }`.
+  The app stores that URL on the Firestore message document.
+- Rate limit: 30 uploads/minute per user.
+- **Notes are not deleted on re-upload** — each one is its own message. Total
+  storage is bounded by the 30-day TTL instead.
+
+### `GET /voice/<uid>/<hash>.<ext>` — public audio
+
+- **No auth**, for the same reason as avatars: the audio player fetches this
+  URL directly and cannot attach headers. The URL is unguessable (a content
+  hash) and expires.
+- Returns `404 { "error": "This voice message has expired." }` once the note
+  ages out, which the app renders as a disabled "Unavailable" bubble.
+
+## Why voice notes expire after 30 days
+
+This is the single design decision that makes voice messaging viable on a
+free tier. Without a TTL, storage grows forever and the 1 GB KV limit is a
+matter of time; with it, usage reaches a steady state:
+
+| | Storage per note | Sustainable rate (1 GB KV) |
+|---|---|---|
+| 30-second note | ~120 KB | ~290 notes/day, indefinitely |
+| 60-second note | ~240 KB | ~145 notes/day, indefinitely |
+
+On KV the expiry is native (`expirationTtl`). R2 has no per-object TTL, so
+the expiry is written as metadata and enforced lazily on read — an expired
+object is deleted the first time anyone asks for it.
+
+Change the window by editing `VOICE_TTL_SECONDS` in `worker.js`.
+
+## Storage: KV vs R2
+
+Avatars (`avatars/…`) and voice notes (`voice/…`) share one namespace/bucket —
+they are just different key prefixes, so there is nothing extra to set up for
+voice once avatars work.
 
 | | Workers KV (default) | R2 (optional) |
 |---|---|---|
@@ -136,6 +179,12 @@ send it a message/call from another.
 | Free storage | 1 GB (~15,000 avatars at 65 KB) | 10 GB |
 | Free writes | 1,000/day | 1M Class A ops/month |
 | Free reads | 100,000/day | 10M Class B ops/month |
+| Object TTL | Native (`expirationTtl`) | Emulated on read |
+
+On the free KV tier the **1,000 writes/day** limit binds before storage does:
+that is the real ceiling on how many voice notes and avatar changes can be
+uploaded per day across all users. Reads (playback) are far more generous at
+100,000/day.
 
 KV is the default precisely so the whole feature works with no billing setup.
 To move to R2 later, create the bucket, uncomment the `[[r2_buckets]]` block

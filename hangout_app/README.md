@@ -4,6 +4,7 @@ A modern **Android** messaging + voice/video calling app built with **Flutter**,
 featuring:
 
 - 💬 1-on-1 real-time messaging (Firestore)
+- 🎤 Voice messages — hold to record, slide to cancel, 30-day retention
 - 📞 Audio & video calls (Agora RTC)
 - 🎙️ **Built-in noise suppression** (free SDK DSP: noise suppression + echo
   cancellation + auto gain — no paid extension)
@@ -93,10 +94,11 @@ That's it — messages and calls now reach the app while it's in the background
 (via a foreground service that keeps the WebSocket alive, plus full-screen
 intent notifications for incoming calls).
 
-## 4. Configure profile pictures (optional)
+## 4. Configure profile pictures + voice messages (optional)
 
-Avatars are stored on the **same Cloudflare Worker**. The Worker keeps them in
-**Workers KV**, which is free and — unlike R2 — needs **no credit card**:
+Avatars **and voice messages** are stored on the **same Cloudflare Worker**,
+in the **same** KV namespace (different key prefixes). Workers KV is free and
+— unlike R2 — needs **no credit card**:
 
 ```bash
 cd ../token_server
@@ -114,10 +116,24 @@ camera or gallery → pinch/drag to frame it → upload. The app crops to a
 512×512 JPEG (~40–80 KB) before uploading, so a 1 GB KV namespace holds
 roughly 15,000 avatars.
 
-Skipping this step is safe — calls and chat work exactly as before, and the
-app shows a clear "photo storage is not set up" message if someone tries to
-upload. To move to R2 (10 GB, but Cloudflare requires a card) later, just bind
-a bucket; see `../token_server/README.md`. **No app change needed.**
+### Voice messages
+
+The same binding enables voice notes in chat: **hold** the mic button in the
+composer to record, slide left to cancel, release to send. Audio is mono AAC
+at 32 kbps (~120 KB for 30 seconds) and capped at 2 minutes.
+
+Voice notes **expire after 30 days**, which is what makes this work on a free
+tier — storage reaches a steady state instead of growing forever. Roughly 145
+one-minute notes per day are sustainable indefinitely on 1 GB. In practice the
+free KV **write** limit (1,000/day) is the real ceiling, not storage. Tune the
+window with `VOICE_TTL_SECONDS` in `token_server/worker.js`.
+
+Skipping this step is safe — calls and text chat work exactly as before. The
+app shows a clear "photo storage is not set up" message for avatars, and the
+mic button is **hidden entirely** (the send button simply stays disabled on an
+empty field) so there is no control that does nothing. To move to R2 (10 GB,
+but Cloudflare requires a card) later, just bind a bucket; see
+`../token_server/README.md`. **No app change needed.**
 
 ## 5. Run
 
@@ -169,7 +185,8 @@ lib/
 │   ├── push_service.dart      # FCM-free push (WebSocket + local notifications)
 │   ├── background_connection.dart  # foreground service keeping the socket alive
 │   ├── call_service.dart      # Agora engine wrapper (noise NS/AEC/AGC, beauty, blur)
-│   └── avatar_service.dart    # profile pictures: crop/compress + upload to the Worker
+│   ├── avatar_service.dart    # profile pictures: crop/compress + upload to the Worker
+│   └── voice_note_service.dart # voice notes: record AAC + upload to the Worker
 ├── providers/                 # Riverpod providers + call controller
 ├── screens/
 │   ├── auth/                  # login, register
@@ -188,6 +205,7 @@ lib/
 users/{uid}            -> { name, email, avatarUrl, createdAt }
 chats/{chatId}         -> { participants: [a,b], lastMessage, lastMessageAt, lastSenderId }
 chats/{chatId}/messages/{id} -> { chatId, authorId, text, sentAt, read }
+                          voice: + { kind: 'voice', audioUrl, audioSeconds }
 calls/{id}             -> { callerId, callerName, calleeId, channelName, type, status, createdAt }
 ```
 

@@ -1,16 +1,23 @@
+import 'dart:async';
+import 'dart:ui' show FontFeature;
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import 'package:record/record.dart' show Amplitude;
 
+import '../../config/app_config.dart';
 import '../../models/app_user.dart';
 import '../../models/call_data.dart';
 import '../../models/chat_message.dart';
 import '../../providers/providers.dart';
+import '../../services/voice_note_service.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/contact_actions.dart';
 import '../../widgets/avatar.dart';
 import '../../widgets/states.dart';
+import '../../widgets/voice_note_player.dart';
 
 /// A 1-on-1 conversation: blue outgoing bubbles, charcoal incoming bubbles,
 /// day separators and a rounded composer.
@@ -86,6 +93,50 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       }
     } finally {
       if (mounted) setState(() => _sending = false);
+    }
+  }
+
+  /// Uploads a finished recording, then posts it as a voice message.
+  ///
+  /// [onProgress] drives the composer's upload indicator.
+  Future<void> _sendVoice(
+    VoiceRecording recording, {
+    required void Function(double) onProgress,
+  }) async {
+    final me = ref.read(authStateProvider).value;
+    if (me == null) return;
+
+    try {
+      final url = await ref
+          .read(voiceNoteServiceProvider)
+          .upload(recording, onProgress: onProgress);
+
+      await ref.read(chatServiceProvider).sendMessage(
+            chatId: widget.chatId,
+            authorId: me.uid,
+            authorName: me.displayName?.trim().isNotEmpty == true
+                ? me.displayName!.trim()
+                : 'Hangout user',
+            // Fallback label for the chat list and notifications.
+            text: '🎤 Voice message',
+            audioUrl: url,
+            audioSeconds: recording.seconds,
+          );
+      _scrollToBottom();
+    } on VoiceNoteException catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(e.message)));
+      }
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Voice message wasn’t sent.')),
+        );
+      }
+    } finally {
+      // The temp file has served its purpose either way.
+      await recording.discard();
     }
   }
 
@@ -332,6 +383,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             controller: _input,
             sending: _sending,
             onSend: _send,
+            onSendVoice: _sendVoice,
           ),
         ],
       ),
@@ -350,23 +402,177 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 // ───────────────────────────────────────────────────────────────────────────
 // Composer
 // ───────────────────────────────────────────────────────────────────────────
-class _Composer extends StatefulWidget {
+class _Composer extends ConsumerStatefulWidget {
   const _Composer({
     required this.controller,
     required this.sending,
     required this.onSend,
+    required this.onSendVoice,
   });
 
   final TextEditingController controller;
   final bool sending;
   final VoidCallback onSend;
+  final Future<void> Function(
+    VoiceRecording recording, {
+    required void Function(double) onProgress,
+  }) onSendVoice;
 
   @override
-  State<_Composer> createState() => _ComposerState();
+  ConsumerState<_Composer> createState() => _ComposerState();
 }
 
-class _ComposerState extends State<_Composer> {
+class _ComposerState extends ConsumerState<_Composer> {
   bool _emojiOpen = false;
+
+  // ── voice recording state ────────────────────────────────────────────
+  bool _recording = false;
+  bool _cancelArmed = false;
+  bool _uploading = false;
+  double _uploadProgress = 0;
+  Duration _elapsed = Duration.zero;
+  double _level = 0;
+  Timer? _ticker;
+  StreamSubscription<Amplitude>? _amplitudeSub;
+  double _dragDx = 0;
+
+  /// How far left the user must slide to abort the recording.
+  static const double _cancelThreshold = 90;
+
+  /// Captured once so [dispose] never has to touch `ref` — reading a
+  /// provider while the container is being torn down can throw.
+  VoiceNoteService? _voiceService;
+
+  @override
+  void initState() {
+    super.initState();
+    _voiceService = ref.read(voiceNoteServiceProvider);
+  }
+
+  @override
+  void dispose() {
+    _ticker?.cancel();
+    _amplitudeSub?.cancel();
+    // If the widget goes away mid-take, drop the partial file.
+    if (_recording) {
+      _voiceService?.cancel();
+    }
+    super.dispose();
+  }
+
+  Future<void> _startRecording() async {
+    if (_recording || _uploading) return;
+    final service = ref.read(voiceNoteServiceProvider);
+
+    try {
+      await service.start();
+    } on VoiceNoteException catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(e.message)));
+      }
+      return;
+    }
+
+    HapticFeedback.mediumImpact();
+    setState(() {
+      _recording = true;
+      _cancelArmed = false;
+      _elapsed = Duration.zero;
+      _dragDx = 0;
+      _level = 0;
+    });
+
+    _ticker = Timer.periodic(const Duration(milliseconds: 200), (_) {
+      if (!mounted || !_recording) return;
+      setState(() => _elapsed += const Duration(milliseconds: 200));
+      // Stop exactly at the cap rather than letting the server reject it.
+      if (_elapsed >= kVoiceMaxDuration) _finishRecording();
+    });
+
+    _amplitudeSub = service.amplitudeStream().listen((amp) {
+      if (!mounted) return;
+      // dBFS is roughly -60 (silence) → 0 (clipping).
+      final normalised = ((amp.current + 45) / 45).clamp(0.0, 1.0).toDouble();
+      setState(() => _level = normalised);
+    });
+  }
+
+  void _stopTimers() {
+    _ticker?.cancel();
+    _ticker = null;
+    _amplitudeSub?.cancel();
+    _amplitudeSub = null;
+  }
+
+  Future<void> _cancelRecording() async {
+    if (!_recording) return;
+    _stopTimers();
+    setState(() {
+      _recording = false;
+      _cancelArmed = false;
+      _dragDx = 0;
+    });
+    HapticFeedback.lightImpact();
+    await ref.read(voiceNoteServiceProvider).cancel();
+  }
+
+  Future<void> _finishRecording() async {
+    if (!_recording) return;
+    _stopTimers();
+    setState(() {
+      _recording = false;
+      _dragDx = 0;
+    });
+
+    final service = ref.read(voiceNoteServiceProvider);
+    VoiceRecording? recording;
+    try {
+      recording = await service.stop();
+    } on VoiceNoteException catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(e.message)));
+      }
+      return;
+    }
+
+    if (recording == null) {
+      // Too short to be deliberate — say so instead of failing silently.
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Hold the mic to record.')),
+        );
+      }
+      return;
+    }
+
+    HapticFeedback.lightImpact();
+    setState(() {
+      _uploading = true;
+      _uploadProgress = 0;
+    });
+
+    await widget.onSendVoice(
+      recording,
+      onProgress: (p) {
+        if (mounted) setState(() => _uploadProgress = p);
+      },
+    );
+
+    if (mounted) {
+      setState(() {
+        _uploading = false;
+        _uploadProgress = 0;
+      });
+    }
+  }
+
+  String _formatElapsed(Duration d) {
+    final m = d.inMinutes;
+    final s = d.inSeconds % 60;
+    return '$m:${s.toString().padLeft(2, '0')}';
+  }
 
   static const _emojiList = [
     '😀', '😂', '😍', '🥰', '😎', '🤔', '🤗',
@@ -385,63 +591,6 @@ class _ComposerState extends State<_Composer> {
     );
   }
 
-  void _showAttachSheet() {
-    final palette = context.colors;
-    showModalBottomSheet<void>(
-      context: context,
-      builder: (sheetContext) => SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(20, 4, 20, 22),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Add to chat',
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.w700,
-                  color: palette.textPrimary,
-                ),
-              ),
-              const SizedBox(height: 12),
-              _AttachOption(
-                icon: Icons.photo_library_outlined,
-                label: 'Photos & videos',
-                onTap: () {
-                  Navigator.of(sheetContext).pop();
-                  _comingSoon('Photos & videos');
-                },
-              ),
-              _AttachOption(
-                icon: Icons.insert_drive_file_outlined,
-                label: 'Document',
-                onTap: () {
-                  Navigator.of(sheetContext).pop();
-                  _comingSoon('Documents');
-                },
-              ),
-              _AttachOption(
-                icon: Icons.photo_camera_outlined,
-                label: 'Camera',
-                onTap: () {
-                  Navigator.of(sheetContext).pop();
-                  _comingSoon('Camera');
-                },
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  void _comingSoon(String feature) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('$feature are coming soon')),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final palette = context.colors;
@@ -455,7 +604,7 @@ class _ComposerState extends State<_Composer> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            if (_emojiOpen)
+            if (_emojiOpen && !_recording)
               SizedBox(
                 height: 108,
                 child: GridView.count(
@@ -472,17 +621,56 @@ class _ComposerState extends State<_Composer> {
                   ],
                 ),
               ),
+            if (_uploading)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 10, 16, 2),
+                child: Row(
+                  children: [
+                    Icon(Icons.upload_rounded,
+                        size: 15, color: palette.textSecondary),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Sending voice message…',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                        color: palette.textSecondary,
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(3),
+                        child: LinearProgressIndicator(
+                          value: _uploadProgress,
+                          minHeight: 3,
+                          backgroundColor: palette.surfaceMuted,
+                          color: AppColors.accent,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             Padding(
               padding: const EdgeInsets.fromLTRB(8, 8, 8, 8),
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
-                  IconButton(
-                    tooltip: 'Attach',
-                    icon: Icon(Icons.add_circle_outline_rounded,
-                        color: palette.textSecondary),
-                    onPressed: _showAttachSheet,
-                  ),
+                  // Only the left-hand side swaps while recording. The mic
+                  // button below must stay mounted for the whole press —
+                  // rebuilding it mid-gesture would kill the long-press and
+                  // the recording could never be stopped.
+                  if (_recording)
+                    Expanded(
+                      child: _RecordingBar(
+                        elapsed: _formatElapsed(_elapsed),
+                        level: _level,
+                        cancelArmed: _cancelArmed,
+                        dragDx: _dragDx,
+                      ),
+                    )
+                  else
                   Expanded(
                     child: Container(
                       constraints: const BoxConstraints(maxHeight: 120),
@@ -534,17 +722,32 @@ class _ComposerState extends State<_Composer> {
                   ValueListenableBuilder<TextEditingValue>(
                     valueListenable: widget.controller,
                     builder: (context, value, _) {
-                      final active = value.text.trim().isNotEmpty;
-                      return Material(
+                      final hasText = value.text.trim().isNotEmpty;
+                      // With text -> send. Empty -> hold to record, but only
+                      // when voice is actually configured; otherwise the
+                      // button stays a disabled send button rather than a
+                      // mic that does nothing.
+                      final voiceMode = !hasText && AppConfig.useVoiceServer;
+                      final active = hasText || voiceMode;
+
+                      final button = Material(
                         color: active
                             ? AppColors.accent
                             : palette.surfaceMuted,
                         shape: const CircleBorder(),
                         child: InkWell(
                           customBorder: const CircleBorder(),
-                          onTap: active && !widget.sending
+                          onTap: hasText && !widget.sending
                               ? widget.onSend
-                              : null,
+                              : voiceMode
+                                  // A plain tap is a common mistake — tell
+                                  // the user what to do instead.
+                                  ? () => ScaffoldMessenger.of(context)
+                                      .showSnackBar(const SnackBar(
+                                      content: Text('Hold to record a voice message.'),
+                                      duration: Duration(seconds: 2),
+                                    ))
+                                  : null,
                           child: SizedBox(
                             width: 48,
                             height: 48,
@@ -557,16 +760,46 @@ class _ComposerState extends State<_Composer> {
                                     ),
                                   )
                                 : Icon(
-                                    active
-                                        ? Icons.send_rounded
-                                        : Icons.mic_rounded,
+                                    // Only ever show a mic when it does
+                                    // something; otherwise this stays an
+                                    // inert send button.
+                                    voiceMode
+                                        ? Icons.mic_rounded
+                                        : Icons.send_rounded,
                                     color: active
                                         ? Colors.white
                                         : palette.textSecondary,
-                                    size: active ? 21 : 22,
+                                    size: voiceMode ? 22 : 21,
                                   ),
                           ),
                         ),
+                      );
+
+                      if (!voiceMode || _uploading) return button;
+
+                      // Press-and-hold to record; slide left to abort.
+                      return GestureDetector(
+                        onLongPressStart: (_) => _startRecording(),
+                        onLongPressEnd: (_) {
+                          if (_cancelArmed) {
+                            _cancelRecording();
+                          } else {
+                            _finishRecording();
+                          }
+                        },
+                        onLongPressMoveUpdate: (details) {
+                          if (!_recording) return;
+                          final dx = details.localOffsetFromOrigin.dx;
+                          final armed = dx < -_cancelThreshold;
+                          if (armed != _cancelArmed) {
+                            HapticFeedback.selectionClick();
+                          }
+                          setState(() {
+                            _dragDx = dx.clamp(-160.0, 0.0).toDouble();
+                            _cancelArmed = armed;
+                          });
+                        },
+                        child: button,
                       );
                     },
                   ),
@@ -580,40 +813,185 @@ class _ComposerState extends State<_Composer> {
   }
 }
 
-class _AttachOption extends StatelessWidget {
-  const _AttachOption({
-    required this.icon,
-    required this.label,
-    required this.onTap,
+/// Replaces the text field while a voice note is being recorded: a pulsing
+/// red dot, the elapsed time, a live level meter and a slide-to-cancel hint.
+class _RecordingBar extends StatelessWidget {
+  const _RecordingBar({
+    required this.elapsed,
+    required this.level,
+    required this.cancelArmed,
+    required this.dragDx,
   });
 
-  final IconData icon;
-  final String label;
-  final VoidCallback onTap;
+  final String elapsed;
+  final double level;
+  final bool cancelArmed;
+  final double dragDx;
 
   @override
   Widget build(BuildContext context) {
     final palette = context.colors;
-    return ListTile(
-      contentPadding: EdgeInsets.zero,
-      leading: Container(
-        width: 44,
-        height: 44,
-        decoration: BoxDecoration(
-          color: palette.accentSurface,
-          borderRadius: BorderRadius.circular(AppRadius.sm),
-        ),
-        child: Icon(icon, color: palette.accentSoft, size: 21),
+    // Fade the bar out as the finger slides towards the cancel threshold.
+    final slideProgress = (dragDx.abs() / 90).clamp(0.0, 1.0).toDouble();
+
+    return Opacity(
+              opacity: cancelArmed ? 0.45 : 1.0,
+              child: Container(
+                height: 48,
+                padding: const EdgeInsets.symmetric(horizontal: 14),
+                decoration: BoxDecoration(
+                  color: cancelArmed
+                      ? Colors.red.withOpacity(.12)
+                      : palette.surfaceAlt,
+                  borderRadius: BorderRadius.circular(AppRadius.xl),
+                ),
+                child: Row(
+                  children: [
+                    _PulsingDot(active: !cancelArmed),
+                    const SizedBox(width: 10),
+                    Text(
+                      elapsed,
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        fontFeatures: const [FontFeature.tabularFigures()],
+                        color: palette.textPrimary,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: _LevelMeter(
+                        level: level,
+                        color: cancelArmed
+                            ? Colors.red.withOpacity(.5)
+                            : AppColors.accent,
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    // The hint slides with the finger, then flips to a
+                    // "release to cancel" affordance.
+                    Transform.translate(
+                      offset: Offset(dragDx * .35, 0),
+                      child: cancelArmed
+                          ? const Text(
+                              'Release to cancel',
+                              style: TextStyle(
+                                fontSize: 12.5,
+                                fontWeight: FontWeight.w700,
+                                color: Colors.red,
+                              ),
+                            )
+                          : Opacity(
+                              opacity: 1 - slideProgress * .6,
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(Icons.chevron_left_rounded,
+                                      size: 17, color: palette.textSecondary),
+                                  Text(
+                                    'Slide to cancel',
+                                    style: TextStyle(
+                                      fontSize: 12.5,
+                                      color: palette.textSecondary,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                    ),
+                  ],
+                ),
+              ),
+    );
+  }
+}
+
+/// The recording indicator — a red dot that breathes.
+class _PulsingDot extends StatefulWidget {
+  const _PulsingDot({required this.active});
+  final bool active;
+
+  @override
+  State<_PulsingDot> createState() => _PulsingDotState();
+}
+
+class _PulsingDotState extends State<_PulsingDot>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 900),
+  )..repeat(reverse: true);
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // Respect the accessibility setting rather than animating regardless.
+    if (MediaQuery.of(context).disableAnimations || !widget.active) {
+      return const Icon(Icons.fiber_manual_record, size: 11, color: Colors.red);
+    }
+    return FadeTransition(
+      opacity: Tween<double>(begin: 0.35, end: 1.0).animate(_controller),
+      child: const Icon(Icons.fiber_manual_record, size: 11, color: Colors.red),
+    );
+  }
+}
+
+/// Live microphone level, drawn as a row of bars that react to loudness.
+class _LevelMeter extends StatelessWidget {
+  const _LevelMeter({required this.level, required this.color});
+
+  final double level;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    const bars = 14;
+    return SizedBox(
+      height: 20,
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          for (var i = 0; i < bars; i++) ...[
+            Expanded(
+              child: _MeterBar(
+                // Bars near the middle react most, which reads as a voice
+                // rather than a flat equaliser.
+                height: 3 +
+                    17 *
+                        level *
+                        (1 - ((i - bars / 2).abs() / (bars / 2)) * .65),
+                color: color,
+              ),
+            ),
+            if (i != bars - 1) const SizedBox(width: 2),
+          ],
+        ],
       ),
-      title: Text(
-        label,
-        style: TextStyle(
-          fontWeight: FontWeight.w600,
-          color: palette.textPrimary,
-        ),
+    );
+  }
+}
+
+class _MeterBar extends StatelessWidget {
+  const _MeterBar({required this.height, required this.color});
+
+  final double height;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 140),
+      curve: Curves.easeOut,
+      height: height.clamp(3.0, 20.0).toDouble(),
+      decoration: BoxDecoration(
+        color: color,
+        borderRadius: BorderRadius.circular(2),
       ),
-      trailing: Icon(Icons.chevron_right_rounded, color: palette.textSecondary),
-      onTap: onTap,
     );
   }
 }
@@ -667,14 +1045,21 @@ class _MessageBubble extends StatelessWidget {
           spacing: 10,
           runSpacing: 2,
           children: [
-            Text(
-              message.text,
-              style: TextStyle(
-                color: mine ? Colors.white : palette.textPrimary,
-                fontSize: 15.5,
-                height: 1.35,
+            if (message.isVoice)
+              VoiceNotePlayer(
+                url: message.audioUrl!,
+                seconds: message.audioSeconds,
+                mine: mine,
+              )
+            else
+              Text(
+                message.text,
+                style: TextStyle(
+                  color: mine ? Colors.white : palette.textPrimary,
+                  fontSize: 15.5,
+                  height: 1.35,
+                ),
               ),
-            ),
             Padding(
               padding: const EdgeInsets.only(bottom: 1),
               child: Row(

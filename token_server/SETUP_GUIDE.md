@@ -83,21 +83,24 @@ https://hangout-token-server.YOURNAME.workers.dev/rtc-token?channel=test123
 
 ---
 
-## 🖼️ PART 2B — Enable profile pictures (KV storage, no credit card)
+## 🖼️ PART 2B — Enable profile pictures + voice messages (KV, no credit card)
 
-Profile pictures need somewhere to live. This uses **Workers KV**, which is
-free and — unlike R2 — does **not** require a credit card.
+Profile pictures and voice messages need somewhere to live. Both use the
+**same** Workers KV namespace, which is free and — unlike R2 — does **not**
+require a credit card. Set this up once and both features work.
 
-> **Do I need this?** Only for profile pictures. Calls, chat and
-> notifications work fine without it. If you skip it, `/` reports
-> `"avatarStorage":"not configured"` and photo uploads show a friendly
-> "photo storage is not set up" message in the app.
+> **Do I need this?** Only for profile pictures and voice messages. Calls,
+> text chat and notifications work fine without it. If you skip it, `/`
+> reports `"avatarStorage":"not configured"`, photo uploads show a friendly
+> "photo storage is not set up" message, and the composer's mic button is
+> hidden so there is no dead control.
 
 ### Step 1 — Create the KV namespace
 1. In the Cloudflare dashboard sidebar, go to **Storage & Databases** →
    **KV** (older UI: **Workers & Pages** → **KV**).
 2. Click **Create instance** / **Create namespace**.
-3. Name it `hangout-avatars` and click **Create**.
+3. Name it `hangout-avatars` and click **Create**. (It holds voice notes
+   too — they just use a different key prefix.)
 
 ### Step 2 — Bind it to the Worker ⚠️ (the step people miss)
 Creating the namespace is **not** enough — the Worker can't see it until you
@@ -118,11 +121,19 @@ Open your worker URL in a browser:
 https://hangout-token-server.YOURNAME.workers.dev/
 ```
 
-| `avatarStorage` says | Meaning |
+| `avatarStorage` / `voiceStorage` says | Meaning |
 |---|---|
-| `"kv"` | ✅ Working — profile pictures are ready |
+| `"kv"` | ✅ Working — profile pictures **and voice messages** are ready |
 | `"not configured"` | Binding missing or misnamed — redo Step 2 |
 | `"r2"` | An R2 bucket is bound; it takes priority over KV (also fine) |
+
+Both fields always report the same backend — one binding powers both.
+
+> **Voice notes expire after 30 days.** That is deliberate: it keeps storage
+> at a steady state so the free 1 GB tier never fills up. On the free plan the
+> **1,000 KV writes/day** limit is the real ceiling (roughly 1,000 voice notes
+> or avatar changes per day across all users). Adjust the window with
+> `VOICE_TTL_SECONDS` in `worker.js`.
 
 > **Note:** if you deploy from the dashboard, `wrangler.toml` is ignored —
 > the dashboard is the source of truth for bindings. Only add the
@@ -168,6 +179,9 @@ new APK → make a test call between two devices.
 | Symptom | Cause | Fix |
 |---|---|---|
 | `"avatarStorage":"not configured"` | KV namespace not bound to the Worker | Do Part 2B Step 2 — creating the namespace alone is not enough |
+| Mic button missing from the chat composer | `_voiceServerUrl` is empty in `app_config.dart` | Set it to your worker URL (Part 3) |
+| "Voice messages are not set up on the server yet" | Worker deployed but no KV binding | Do Part 2B Step 2 |
+| A voice note plays as "Unavailable" | It is older than 30 days and has expired | Expected — ask the sender to re-record |
 | "Photo storage is not set up" in the app | Same as above (the app is reporting the Worker's 501) | Do Part 2B Step 2 |
 | Binding added but still "not configured" | Variable name typo | It must be exactly `AVATARS_KV` (uppercase, underscore) |
 | Upload says "session expired" | Firebase ID token rejected | Sign out and back in; check `FIREBASE_PROJECT_ID` matches your project |

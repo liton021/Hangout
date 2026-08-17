@@ -95,6 +95,27 @@ class AppConfig {
   /// True when profile-picture uploads are available.
   static bool get useAvatarServer => avatarServerUrl.isNotEmpty;
 
+  // ────────────────────────────────────────────────────────────────────
+  //  ▼▼▼  VOICE NOTE HOSTING  ▼▼▼
+  //  The same Cloudflare Worker and the same KV namespace / R2 bucket as
+  //  avatars — voice notes just live under a different key prefix and
+  //  expire automatically after 30 days, which is what keeps the
+  //  card-free 1 GB KV tier viable. See token_server/README.md.
+  // ────────────────────────────────────────────────────────────────────
+  static const String _voiceServerUrl =
+      'https://hangout-token-server.onelitonbd.workers.dev';
+
+  /// Effective voice server URL. `--dart-define=VOICE_SERVER_URL=...`
+  /// overrides the hard-coded value above.
+  static const String voiceServerUrl = String.fromEnvironment(
+    'VOICE_SERVER_URL',
+    defaultValue: _voiceServerUrl,
+  );
+
+  /// True when voice messages are available. When false the composer falls
+  /// back to text only — no dead mic button.
+  static bool get useVoiceServer => voiceServerUrl.isNotEmpty;
+
   /// True when a token server is configured (secured mode).
   static bool get useTokenServer => tokenServerUrl.isNotEmpty;
 
