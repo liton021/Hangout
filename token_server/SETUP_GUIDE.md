@@ -88,13 +88,32 @@ threw exception"* and push silently never connects. Set it up once:
 1. Go to the worker page → **Settings** tab → **Bindings** → **Add binding**.
 2. Choose **Durable Object Namespace**.
 3. **Variable name:** `PUSH_ROOM` — must be exactly this, uppercase with an
-   underscore.
-4. **Namespace name:** `PUSH_ROOM` (the dashboard creates it for you).
-5. Click **Add binding** / **Deploy**.
-6. If you're deploying with `wrangler` instead, make sure the
-   `[[migrations]]` block with `new_sqlite_classes = ["PushRoom"]` is
-   present in `wrangler.toml` (it is, in this repo) — the migration must
-   run on the first deploy after adding the binding.
+   underscore. This is what the code reads as `env.PUSH_ROOM`.
+4. Under **Durable Object namespace**, the dropdown will be empty because
+   the namespace doesn't exist yet. Choose **Create a new namespace**
+   (it's the last option in the dropdown).
+5. Give the **namespace** a name — e.g. `PUSH_ROOM` (any unique name is
+   fine; it's just the namespace's own identifier).
+6. **Class name:** `PushRoom` ⚠️ — this must match the JavaScript class
+   exported by the Worker code, exactly as written in `worker.js`:
+   ```js
+   export class PushRoom extends DurableObject {
+   ```
+   Capital **P**, capital **R**, no spaces. If the class name doesn't match,
+   the binding points at nothing and `/ws` still fails. (A namespace can
+   only point at one class, so if you later rename the class, create a new
+   namespace too.)
+7. Click **Add binding** / **Deploy**.
+
+> Why are there *two* names? Cloudflare separates them on purpose:
+> the **variable name** is what your code uses (`env.PUSH_ROOM`) and the
+> **class name** is which class in your Worker script actually runs. For
+> this app: variable `PUSH_ROOM` → class `PushRoom`.
+
+If you're deploying with `wrangler` instead, you don't need any of this —
+`wrangler.toml` already declares the binding *and* the class name, and the
+`[[migrations]]` block with `new_sqlite_classes = ["PushRoom"]` creates the
+namespace for you on the first deploy.
 
 ### Step 6 — Get your worker URL
 On the worker overview page you'll see something like:
