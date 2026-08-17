@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -17,6 +19,7 @@ import 'screens/splash_screen.dart';
 import 'services/background_connection.dart';
 import 'services/permission_service.dart';
 import 'services/push_service.dart';
+import 'services/update_service.dart';
 import 'theme/app_theme.dart';
 
 class HangoutApp extends ConsumerStatefulWidget {
@@ -163,6 +166,12 @@ class _HangoutAppState extends ConsumerState<HangoutApp> {
         await ref.read(userServiceProvider).upsert(user);
         if (AppConfig.usePushServer) {
           await startBackgroundConnection();
+        }
+        // In-app auto-update: once per session, ask GitHub whether a newer
+        // release exists and prompt the user (never blocks sign-in).
+        final navContext = _navKey.currentContext;
+        if (navContext != null) {
+          unawaited(UpdateService.checkOnLaunch(navContext));
         }
         final tap = _pendingLaunchTap;
         if (tap != null) {

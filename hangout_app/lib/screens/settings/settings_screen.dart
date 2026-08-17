@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../config/app_config.dart';
 import '../../models/app_user.dart';
 import '../../providers/providers.dart';
+import '../../services/update_service.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/app_header.dart';
 import '../../widgets/avatar.dart';
@@ -111,9 +113,21 @@ class SettingsScreen extends ConsumerWidget {
                 ],
               ),
               const SizedBox(height: 22),
+              GroupCard(
+                dividerIndent: 74,
+                children: [
+                  SettingsRow(
+                    icon: Icons.system_update_alt_rounded,
+                    title: 'Check for updates',
+                    subtitle: 'Look for a newer version on GitHub',
+                    onTap: () => UpdateService.promptIfAvailable(context),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 22),
               Center(
                 child: Text(
-                  'Hangout 1.0.0',
+                  'Hangout ${AppConfig.appVersion}',
                   style: TextStyle(
                     color: context.colors.textTertiary,
                     fontSize: 12.5,

@@ -133,6 +133,9 @@ flutter {
 dependencies {
     // Core library desugaring for flutter_local_notifications.
     coreLibraryDesugaring 'com.android.tools:desugar_jdk_libs:2.1.4'
+
+    // FileProvider for the in-app auto-update installer (MainActivity.kt).
+    implementation 'androidx.core:core-ktx:1.13.1'
 }
 
 // Firebase — requires android/app/google-services.json (see README).

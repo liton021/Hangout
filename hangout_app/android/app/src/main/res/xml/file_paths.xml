@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- FileProvider paths for the in-app auto-update installer.
+     APKs are downloaded into the app's external files dir (path_provider's
+     getExternalStorageDirectory → Android/data/<pkg>/files). -->
+<paths>
+    <external-files-path name="apks" path="apks/" />
+    <files-path name="internal" path="." />
+    <cache-path name="cache" path="." />
+</paths>

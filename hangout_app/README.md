@@ -7,6 +7,9 @@ featuring:
 - 🎤 Voice messages — tap to record, pause/resume, send or cancel, 10-day retention
 - 🖼️ Photo messages — gallery picker, 10-day retention
 - 📞 Audio & video calls (Agora RTC)
+- 🔄 **In-app auto-update** — on launch the app checks GitHub Releases for a
+  newer APK, prompts the user, downloads and installs it (see
+  `docs/AUTO_UPDATE.md` for how to ship an update)
 - 🎙️ **Built-in noise suppression** (free SDK DSP: noise suppression + echo
   cancellation + auto gain — no paid extension)
 - ✨ **Video filters** — beauty/skin smoothing, background blur, camera flip

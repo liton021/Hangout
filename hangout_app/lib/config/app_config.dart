@@ -146,4 +146,27 @@ class AppConfig {
       agoraAppId.isNotEmpty &&
       agoraAppId != 'PASTE_YOUR_AGORA_APP_ID_HERE' &&
       agoraAppId != 'YOUR_AGORA_APP_ID';
+
+  // ────────────────────────────────────────────────────────────────────
+  //  ▼▼▼  AUTO-UPDATE (GitHub Releases — no Cloudflare needed)  ▼▼▼
+  //  On launch the app checks the latest GitHub release; when its tag is
+  //  newer than [appVersion] it offers to download & install the APK.
+  //
+  //  HOW TO SHIP AN UPDATE:
+  //   1. Bump [appVersion] below to the new version (e.g. '1.0.1').
+  //   2. Commit & push (CI builds the APK for the release).
+  //   3. Create a tag named  v<appVersion>  (e.g. `v1.0.1`) on GitHub —
+  //      the release workflow builds a universal APK and attaches it.
+  //   4. Users who open the app see the update prompt automatically.
+  // ────────────────────────────────────────────────────────────────────
+
+  /// Installed app version. Must match the version tag of the *previous*
+  /// release until you bump it for the next one.
+  static const String appVersion = '1.0.0';
+
+  /// GitHub repository hosting the release APKs ('owner/name').
+  static const String githubRepo = 'liton021/Hangout';
+
+  /// Master switch for the in-app updater.
+  static bool get useAutoUpdate => githubRepo.isNotEmpty;
 }
