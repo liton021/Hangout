@@ -35,12 +35,15 @@ android {
         // use java.time APIs that need core library desugaring on older
         // Android versions.
         coreLibraryDesugaringEnabled = true
-        sourceCompatibility = JavaVersion.VERSION_1_8
-        targetCompatibility = JavaVersion.VERSION_1_8
+        // Java 17, because record_android compiles at 17 and Gradle refuses
+        // to link modules with inconsistent JVM targets. Desugaring keeps
+        // minSdk 24 working. CI already runs JDK 17.
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
     }
 
     kotlinOptions {
-        jvmTarget = "1.8"
+        jvmTarget = "17"
     }
 
     defaultConfig {
