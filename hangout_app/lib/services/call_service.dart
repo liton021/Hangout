@@ -448,18 +448,42 @@ class CallService {
   }
 
   /// Controller for the local camera view (uid 0).
+  ///
+  /// [RenderModeType.renderModeHidden] scales the frame to *fill* the view and
+  /// crops the overflow, so the small PiP tile shows a properly framed face
+  /// instead of a letterboxed thumbnail.
   VideoViewController localVideoController() {
     return VideoViewController(
       rtcEngine: _engine!,
-      canvas: const VideoCanvas(uid: 0),
+      canvas: const VideoCanvas(
+        uid: 0,
+        renderMode: RenderModeType.renderModeHidden,
+        // `auto` = the SDK's own rule: mirror the front camera (so the
+        // preview behaves like a real mirror) and don't mirror the rear one.
+        // Hard-coding `enabled` would leave rear-camera video flipped after
+        // the user taps Flip. Either way this is display-only — the frame
+        // sent to the other participant is never mirrored.
+        mirrorMode: VideoMirrorModeType.videoMirrorModeAuto,
+      ),
     );
   }
 
   /// Controller for a remote participant's video.
+  ///
+  /// Uses [RenderModeType.renderModeHidden] (fill + centre-crop) rather than
+  /// `renderModeFit`. `Fit` letterboxes: a 16:9 camera frame shown on a ~20:9
+  /// phone screen gets pillarboxed/letterboxed with the black bands at the
+  /// top and bottom that this screen used to show. `Hidden` fills the screen
+  /// the way WhatsApp/Messenger/FaceTime do, trimming the edges instead.
   VideoViewController remoteVideoController(int uid) {
     return VideoViewController.remote(
       rtcEngine: _engine!,
-      canvas: VideoCanvas(uid: uid, renderMode: RenderModeType.renderModeFit),
+      canvas: VideoCanvas(
+        uid: uid,
+        renderMode: RenderModeType.renderModeHidden,
+        // Never mirror the far end — that would flip any text behind them.
+        mirrorMode: VideoMirrorModeType.videoMirrorModeDisabled,
+      ),
       connection: RtcConnection(channelId: _channelName),
     );
   }
