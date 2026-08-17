@@ -18,6 +18,16 @@ One Worker, three jobs — all **free tier, no billing**:
 > dashboard — see **PART 2B** in [`SETUP_GUIDE.md`](./SETUP_GUIDE.md).
 > A missing binding is what makes `/` report
 > `"avatarStorage":"not configured"`.
+>
+> ⚠️ **Dashboard deploys also need two more things that `wrangler.toml`
+> would otherwise provide:** the `FIREBASE_PROJECT_ID` **variable**
+> (Settings → Variables and Secrets; without it every authed endpoint —
+> avatars, voice notes, push — returns `401 Unauthorized`) and the
+> `PUSH_ROOM` **Durable Object binding** (Settings → Bindings; without it
+> `/ws` crashes with Cloudflare Error 1101). See **Step 5** and **Step 5B**
+> in [`SETUP_GUIDE.md`](./SETUP_GUIDE.md). After deploying, verify with the
+> self-check at the worker root `/` — all `config.*Configured` fields must
+> read `true`.
 
 ## Deploy (one time, ~5 minutes)
 
@@ -40,6 +50,12 @@ One Worker, three jobs — all **free tier, no billing**:
    npx wrangler deploy         # worker + Durable Object ("PushRoom") + KV
    ```
 
+   The `[vars] FIREBASE_PROJECT_ID` in `wrangler.toml` deploys with it — the
+   value must match the `project_id` in
+   `hangout_app/android/app/google-services.json` (here: `litonsgembd`).
+   `npx wrangler secret put`-style values are not needed for it; it's a plain
+   variable.
+
 3. Set the two secrets (values from https://console.agora.io → your project):
 
    ```bash
@@ -58,6 +74,18 @@ One Worker, three jobs — all **free tier, no billing**:
    override with `--dart-define=TOKEN_SERVER_URL=...` /
    `--dart-define=PUSH_SERVER_URL=...` / `--dart-define=AVATAR_SERVER_URL=...`.
    Rebuild the app. Done.
+
+6. **Verify the deployment** — open the worker root in a browser:
+
+   ```
+   https://hangout-token-server.<your-subdomain>.workers.dev/
+   ```
+
+   `config.firebaseProjectIdConfigured`, `config.pushRoomConfigured` and
+   `config.avatarStorageConfigured` must all be `true`, or the app will
+   show "session expired" / "server missing FIREBASE_PROJECT_ID" errors on
+   profile-picture and voice-message uploads even though the user is signed
+   in fine.
 
 ## Test it
 

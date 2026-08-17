@@ -225,12 +225,45 @@ function pemToBytes(pem) {
 }
 
 /**
+ * Auth failures carry a stable machine-readable [code] so the app can tell a
+ * server misconfiguration (fixable by the developer) apart from a genuinely
+ * bad session (fixable by the user signing in again). The message stays
+ * human-readable for anyone hitting the endpoint with curl.
+ */
+class AuthError extends Error {
+  constructor(message, code) {
+    super(message);
+    this.code = code;
+  }
+}
+
+/**
+ * Standard 401 body for every endpoint that verifies the Firebase ID token.
+ * The `errorCode` field is what the Flutter app keys on; never rely on the
+ * wording of `error` (it may change).
+ */
+function authError(e) {
+  return json(
+    {
+      error: `Unauthorized: ${e.message}`,
+      ...(e.code ? { errorCode: e.code } : {}),
+    },
+    401,
+  );
+}
+
+/**
  * Verifies a Firebase Auth ID token (RS256) against Google's public certs.
  * Returns the decoded claims (claims.sub === uid).
  */
 async function verifyFirebaseIdToken(token, projectId) {
   if (!token) throw new Error('missing Bearer token');
-  if (!projectId) throw new Error('server missing FIREBASE_PROJECT_ID');
+  if (!projectId) {
+    throw new AuthError(
+      'server missing FIREBASE_PROJECT_ID',
+      'server_missing_firebase_project_id',
+    );
+  }
   const parts = token.split('.');
   if (parts.length !== 3) throw new Error('malformed token');
 
@@ -298,7 +331,7 @@ export class PushRoom extends DurableObject {
       );
       if (claims.sub !== uid) return json({ error: 'uid does not match token.' }, 403);
     } catch (e) {
-      return json({ error: `Unauthorized: ${e.message}` }, 401);
+      return authError(e);
     }
 
     if (request.headers.get('Upgrade') !== 'websocket') {
@@ -669,9 +702,19 @@ export default {
       try {
         claims = await verifyFirebaseIdToken(bearer(request), env.FIREBASE_PROJECT_ID);
       } catch (e) {
-        return json({ error: `Unauthorized: ${e.message}` }, 401);
+        return authError(e);
       }
       if (rateLimited(claims.sub)) return json({ error: 'Rate limit exceeded.' }, 429);
+      if (!env.PUSH_ROOM) {
+        return json(
+          {
+            error:
+              'Push is not configured: bind the PUSH_ROOM Durable Object (and run its migration) before deploying again.',
+            errorCode: 'server_missing_push_room',
+          },
+          503,
+        );
+      }
 
       let body;
       try {
@@ -757,7 +800,7 @@ export default {
       try {
         claims = await verifyFirebaseIdToken(bearer(request), env.FIREBASE_PROJECT_ID);
       } catch (e) {
-        return json({ error: `Unauthorized: ${e.message}` }, 401);
+        return authError(e);
       }
       const uid = claims.sub;
 
@@ -883,7 +926,7 @@ export default {
       try {
         claims = await verifyFirebaseIdToken(bearer(request), env.FIREBASE_PROJECT_ID);
       } catch (e) {
-        return json({ error: `Unauthorized: ${e.message}` }, 401);
+        return authError(e);
       }
       const uid = claims.sub;
 
@@ -945,12 +988,26 @@ export default {
       if (!uid || uid.length > 128) {
         return json({ error: 'Missing or invalid "uid" query parameter.' }, 400);
       }
+      if (!env.PUSH_ROOM) {
+        // Without this guard the Worker would throw and the client would see
+        // a bare Cloudflare "Error 1101 — Worker threw exception" instead of
+        // a readable answer.
+        return json(
+          {
+            error:
+              'Push is not configured: bind the PUSH_ROOM Durable Object (and run its migration) before deploying again.',
+            errorCode: 'server_missing_push_room',
+          },
+          503,
+        );
+      }
       const stub = env.PUSH_ROOM.get(env.PUSH_ROOM.idFromName(uid));
       return stub.fetch(request);
     }
 
     /* ---------------- root info ---------------- */
     if (url.pathname === '/' || url.pathname === '') {
+      const store = avatarStore(env);
       return json({
         service: 'hangout-token-server',
         endpoints: [
@@ -963,9 +1020,20 @@ export default {
           'POST /voice (raw audio bytes, Authorization: Bearer <id-token>) → { url }',
           'GET /voice/<uid>/<hash>.<ext> (public voice note, expires after 30 days)',
         ],
-        avatarStorage: avatarStore(env)?.kind ?? 'not configured',
-        voiceStorage: avatarStore(env)?.kind ?? 'not configured',
+        avatarStorage: store?.kind ?? 'not configured',
+        voiceStorage: store?.kind ?? 'not configured',
         voiceRetentionDays: VOICE_TTL_SECONDS / 86400,
+        // Deployment self-check — every field should read `true` on a
+        // correctly configured worker:
+        //   config.firebaseProjectIdConfigured — [vars] FIREBASE_PROJECT_ID
+        //   config.pushRoomConfigured          — PUSH_ROOM Durable Object binding
+        //   config.avatarStorageConfigured    — AVATARS_KV / AVATARS_R2 binding
+        config: {
+          firebaseProjectIdConfigured: Boolean(env.FIREBASE_PROJECT_ID),
+          firebaseProjectId: env.FIREBASE_PROJECT_ID || null,
+          pushRoomConfigured: Boolean(env.PUSH_ROOM),
+          avatarStorageConfigured: Boolean(store),
+        },
       });
     }
 

@@ -252,21 +252,43 @@ class AvatarService {
   }
 
   /// Turns a Worker error body into something worth showing a user.
+  ///
+  /// A 401 here is almost never an expired session: the app only sends a
+  /// freshly minted Firebase ID token, so a rejection means the *server*
+  /// couldn't verify it (most commonly the deployed Worker is missing its
+  /// `FIREBASE_PROJECT_ID` variable). The Worker tags that case with
+  /// `errorCode: "server_missing_firebase_project_id"` so we can say so
+  /// instead of scaring the user into signing out.
   String _errorFrom(String body, int status) {
+    String? serverError;
+    String? errorCode;
     try {
       final decoded = jsonDecode(body);
-      if (decoded is Map && decoded['error'] is String) {
-        final error = decoded['error'] as String;
-        if (status == 501) {
-          return 'Photo storage is not set up on the server yet.';
+      if (decoded is Map<String, dynamic>) {
+        if (decoded['error'] is String) serverError = decoded['error'] as String;
+        if (decoded['errorCode'] is String) {
+          errorCode = decoded['errorCode'] as String;
         }
-        if (status == 429) return 'Too many uploads — please wait a minute.';
-        if (status == 401) return 'Your session expired. Sign in again.';
-        return error;
       }
     } catch (_) {
       // Fall through to the generic message.
     }
+
+    if (status == 501) {
+      return 'Photo storage is not set up on the server yet.';
+    }
+    if (status == 429) return 'Too many uploads — please wait a minute.';
+    if (status == 413) return 'That picture is too large for the server.';
+    if (status == 401) {
+      if (errorCode == 'server_missing_firebase_project_id' ||
+          (serverError ?? '').contains('FIREBASE_PROJECT_ID')) {
+        return 'Photo uploads are blocked by a missing server setting '
+            '(the Hangout server has no Firebase project ID). '
+            'Please try again later.';
+      }
+      return 'The photo server could not verify your login. Please try again.';
+    }
+    if (serverError != null && serverError.isNotEmpty) return serverError;
     return 'Upload failed (error $status). Please try again.';
   }
 }

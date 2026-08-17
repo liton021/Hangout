@@ -279,22 +279,44 @@ class VoiceNoteService {
   }
 
   /// Turns a Worker error body into something worth showing a user.
+  ///
+  /// A 401 here is almost never an expired session: the app only sends a
+  /// freshly minted Firebase ID token, so a rejection means the *server*
+  /// couldn't verify it (most commonly the deployed Worker is missing its
+  /// `FIREBASE_PROJECT_ID` variable). The Worker tags that case with
+  /// `errorCode: "server_missing_firebase_project_id"` so we can say so
+  /// instead of leaking raw server text or scaring the user into
+  /// signing out.
   String _errorFrom(String body, int status) {
+    String? message;
+    String? errorCode;
     try {
-      final data = jsonDecode(body) as Map<String, dynamic>;
-      final message = data['error'] as String?;
-      if (message != null && message.isNotEmpty) {
-        if (status == 501) {
-          return 'Voice messages are not set up on the server yet.';
+      final decoded = jsonDecode(body);
+      if (decoded is Map<String, dynamic>) {
+        if (decoded['error'] is String) message = decoded['error'] as String;
+        if (decoded['errorCode'] is String) {
+          errorCode = decoded['errorCode'] as String;
         }
-        return message;
       }
     } catch (_) {
       // Fall through to the generic message.
     }
-    if (status == 401) return 'Your session expired. Sign in again.';
+
+    if (status == 501) {
+      return 'Voice messages are not set up on the server yet.';
+    }
     if (status == 413) return 'That recording is too large to send.';
     if (status == 429) return 'Too many voice messages — wait a moment.';
+    if (status == 401) {
+      if (errorCode == 'server_missing_firebase_project_id' ||
+          (message ?? '').contains('FIREBASE_PROJECT_ID')) {
+        return 'Voice messages are blocked by a missing server setting '
+            '(the Hangout server has no Firebase project ID). '
+            'Please try again later.';
+      }
+      return 'The voice server could not verify your login. Please try again.';
+    }
+    if (message != null && message.isNotEmpty) return message;
     return 'Upload failed (error $status).';
   }
 

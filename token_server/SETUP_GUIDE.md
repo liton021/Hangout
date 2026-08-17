@@ -58,7 +58,45 @@ your web browser. Takes about 10 minutes.
 > ⚠️ Names must be EXACTLY `AGORA_APP_ID` and `AGORA_APP_CERTIFICATE`
 > (uppercase, with underscores).
 
-### Step 5 — Get your worker URL
+### Step 5 — Add the Firebase project ID variable ⚠️ (the step people miss)
+
+Profile pictures, voice messages, push notifications and even call tokens
+can **all** fail with `401 Unauthorized` — and the app then shows
+*"Your session expired. Sign in again."* — when this single variable is
+missing. The Worker needs it to verify the app's Firebase ID token.
+
+1. In the same **Settings → Variables and Secrets** screen, click **Add**.
+2. Choose type **Variable** (not Secret — it is not sensitive).
+3. **Name:** `FIREBASE_PROJECT_ID`
+4. **Value:** your Firebase project ID. You can read it from
+   `hangout_app/android/app/google-services.json` → `"project_id"`.
+   (For this repo's app that is `litonsgembd`.)
+5. Click **Deploy** (or **Save**).
+
+> 🔍 **How to check it's missing:** open the Worker's URL in a browser and
+> look at the `config` section of the JSON — a missing variable shows
+> `"firebaseProjectIdConfigured": false`. A broken upload also returns
+> `"errorCode": "server_missing_firebase_project_id"`.
+
+### Step 5B — Bind the PUSH_ROOM Durable Object (for push/WebSocket signaling)
+
+Background notifications (incoming calls, new-message heads-up) run over a
+WebSocket that lives in a **Durable Object** named `PUSH_ROOM`. If it isn't
+bound, the `/ws` endpoint crashes with Cloudflare's *"Error 1101 — Worker
+threw exception"* and push silently never connects. Set it up once:
+
+1. Go to the worker page → **Settings** tab → **Bindings** → **Add binding**.
+2. Choose **Durable Object Namespace**.
+3. **Variable name:** `PUSH_ROOM` — must be exactly this, uppercase with an
+   underscore.
+4. **Namespace name:** `PUSH_ROOM` (the dashboard creates it for you).
+5. Click **Add binding** / **Deploy**.
+6. If you're deploying with `wrangler` instead, make sure the
+   `[[migrations]]` block with `new_sqlite_classes = ["PushRoom"]` is
+   present in `wrangler.toml` (it is, in this repo) — the migration must
+   run on the first deploy after adding the binding.
+
+### Step 6 — Get your worker URL
 On the worker overview page you'll see something like:
 
 ```
@@ -68,10 +106,10 @@ https://hangout-token-server.YOURNAME.workers.dev
 If the URL is disabled, go to **Settings → Domains & Routes** and enable
 the `workers.dev` route.
 
-### Step 6 — Test it (don't skip!)
+### Step 7 — Test it (don't skip!)
 Open in your browser:
 
-```
+```text
 https://hangout-token-server.YOURNAME.workers.dev/rtc-token?channel=test123
 ```
 
@@ -80,6 +118,22 @@ https://hangout-token-server.YOURNAME.workers.dev/rtc-token?channel=test123
 | JSON with `"token": "007..."` | ✅ Working! |
 | `"Server misconfigured"` | Secrets missing or misnamed — redo Step 4 |
 | `"Not found"` | You forgot `/rtc-token` in the URL |
+
+Then open the worker root (this is the deployment self-check):
+
+```text
+https://hangout-token-server.YOURNAME.workers.dev/
+```
+
+| `config` field | Should read | If it says `false` |
+|---|---|---|
+| `firebaseProjectIdConfigured` | `true` | Redo Step 5 — the Firebase project ID variable is missing |
+| `pushRoomConfigured` | `true` | Redo Step 5B — the PUSH_ROOM Durable Object isn't bound |
+| `avatarStorageConfigured` | `true` | Redo Part 2B Step 2 — the KV binding is missing |
+| `avatarStorage` / `voiceStorage` | `"kv"` (or `"r2"`) | Same as above |
+
+All three must be `true` before profile pictures, voice messages and push
+notifications will work.
 
 ---
 
@@ -169,12 +223,12 @@ new APK → make a test call between two devices.
 
 | Symptom | Cause | Fix |
 |---|---|---|
-| Agora error `110` / `109` | Bad/expired token | Re-test the worker URL (Part 2 Step 6) |
+| Agora error `110` / `109` | Bad/expired token | Re-test the worker URL (Part 2 Step 7) |
 | "Could not fetch call token" | Wrong `_tokenServerUrl` / no internet | Check URL: https, no trailing slash, no typos |
 | Agora error `101` | Wrong App ID | App ID in the app must match the certificate's project |
 | Call joins, no audio/video | Permissions denied | Enable mic + camera in Android settings |
 
-## 🔧 Troubleshooting profile pictures
+## 🔧 Troubleshooting profile pictures & voice messages
 
 | Symptom | Cause | Fix |
 |---|---|---|
@@ -184,8 +238,15 @@ new APK → make a test call between two devices.
 | A voice note plays as "Unavailable" | It is older than 30 days and has expired | Expected — ask the sender to re-record |
 | "Photo storage is not set up" in the app | Same as above (the app is reporting the Worker's 501) | Do Part 2B Step 2 |
 | Binding added but still "not configured" | Variable name typo | It must be exactly `AVATARS_KV` (uppercase, underscore) |
-| Upload says "session expired" | Firebase ID token rejected | Sign out and back in; check `FIREBASE_PROJECT_ID` matches your project |
+| Upload shows "session expired, sign in again" | ⚠️ Almost always **not** a real session problem — the Worker is missing the `FIREBASE_PROJECT_ID` variable, so it rejects every ID token with 401 | Do **Step 5** (add the variable) and redeploy the Worker. Your session is fine — do NOT sign out |
+| Voice message shows "Unauthorized: server missing FIREBASE_PROJECT_ID" | Same missing variable, surfaced raw by older app builds | Do **Step 5** and redeploy; then update the app (newer builds show a friendly message instead) |
+| `/ws` (notifications) shows Cloudflare "Error 1101 — Worker threw exception" | `PUSH_ROOM` Durable Object not bound (or its migration never ran) | Do **Step 5B** and redeploy |
+| Push/notifications never arrive | `pushRoomConfigured` is `false` in the `/` self-check | Do **Step 5B** and redeploy |
 | "Too many uploads" | Rate limit (6/min per user) | Wait a minute |
+
+> **After adding the variable or binding, always redeploy** (dashboard:
+> **Deploy** button; CLI: `npx wrangler deploy`). Variables and bindings
+> only take effect on the next deploy.
 
 ## ℹ️ Notes
 
