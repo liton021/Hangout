@@ -4,7 +4,8 @@ A modern **Android** messaging + voice/video calling app built with **Flutter**,
 featuring:
 
 - 💬 1-on-1 real-time messaging (Firestore)
-- 🎤 Voice messages — hold to record, slide to cancel, 30-day retention
+- 🎤 Voice messages — hold to record, slide to cancel, 10-day retention
+- 🖼️ Photo messages — gallery picker, 10-day retention
 - 📞 Audio & video calls (Agora RTC)
 - 🎙️ **Built-in noise suppression** (free SDK DSP: noise suppression + echo
   cancellation + auto gain — no paid extension)
@@ -122,7 +123,8 @@ The same binding enables voice notes in chat: **hold** the mic button in the
 composer to record, slide left to cancel, release to send. Audio is mono AAC
 at 32 kbps (~120 KB for 30 seconds) and capped at 2 minutes.
 
-Voice notes **expire after 30 days**, which is what makes this work on a free
+Voice notes and chat photos **expire after 10 days** (profile pictures never
+expire), which is what makes this work on a free
 tier — storage reaches a steady state instead of growing forever. Roughly 145
 one-minute notes per day are sustainable indefinitely on 1 GB. In practice the
 free KV **write** limit (1,000/day) is the real ceiling, not storage. Tune the

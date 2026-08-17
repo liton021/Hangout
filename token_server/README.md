@@ -176,11 +176,11 @@ send it a message/call from another.
 - Max 1 MB. The app records mono AAC at 32 kbps and stops at 2 minutes, so a
   worst-case note is around 480 KB.
 - As with images, the format is verified from the magic bytes, not the header.
-- Returns `{ "url": "https://…/voice/<uid>/<hash>.m4a", "expiresInDays": 30 }`.
+- Returns `{ "url": "https://…/voice/<uid>/<hash>.m4a", "expiresInDays": 10 }`.
   The app stores that URL on the Firestore message document.
 - Rate limit: 30 uploads/minute per user.
 - **Notes are not deleted on re-upload** — each one is its own message. Total
-  storage is bounded by the 30-day TTL instead.
+  storage is bounded by the 10-day TTL instead.
 
 ### `GET /voice/<uid>/<hash>.<ext>` — public audio
 
@@ -190,9 +190,32 @@ send it a message/call from another.
 - Returns `404 { "error": "This voice message has expired." }` once the note
   ages out, which the app renders as a disabled "Unavailable" bubble.
 
-## Why voice notes expire after 30 days
+### `POST /image` — upload a chat photo
 
-This is the single design decision that makes voice messaging viable on a
+- Requires `Authorization: Bearer <firebase-id-token>`.
+- Body: **raw image bytes**, with `Content-Type: image/jpeg` (what the app
+  sends), `image/png` or `image/webp`.
+- Max 2 MB. The app downscales to at most 1600 px and re-encodes as JPEG
+  (~150–400 KB) before uploading.
+- The format is verified from the magic bytes, not the header.
+- Returns `{ "url": "https://…/image/<uid>/<hash>.jpg", "expiresInDays": 10 }`.
+  The app stores that URL on the Firestore message document.
+- Rate limit: 15 uploads/minute per user.
+- Photos expire after **10 days** (same TTL as voice notes); each one is its
+  own message and is never deleted early.
+
+### `GET /image/<uid>/<hash>.<ext>` — public photo
+
+- **No auth**, for the same reason as avatars/voice: the recipient's image
+  loader fetches this URL directly and cannot attach headers. The URL is
+  unguessable (a content hash) and expires.
+- Returns `404 { "error": "This photo has expired." }` once the photo ages
+  out, which the app renders as a "Photo expired" placeholder.
+
+## Why voice notes and chat photos expire after 10 days
+
+This is the single design decision that makes voice messaging and photo
+sharing viable on a
 free tier. Without a TTL, storage grows forever and the 1 GB KV limit is a
 matter of time; with it, usage reaches a steady state:
 
@@ -209,9 +232,9 @@ Change the window by editing `VOICE_TTL_SECONDS` in `worker.js`.
 
 ## Storage: KV vs R2
 
-Avatars (`avatars/…`) and voice notes (`voice/…`) share one namespace/bucket —
-they are just different key prefixes, so there is nothing extra to set up for
-voice once avatars work.
+Avatars (`avatars/…`), voice notes (`voice/…`) and chat photos (`images/…`)
+share one namespace/bucket — they are just different key prefixes, so there
+is nothing extra to set up for voice or photos once avatars work.
 
 | | Workers KV (default) | R2 (optional) |
 |---|---|---|

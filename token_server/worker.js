@@ -24,7 +24,10 @@
  *                             Firestore document (`users/{uid}.avatarUrl`).
  *   GET    /avatar/<uid>/<hash>.<ext>   public, immutable, cached forever.
  *   POST   /voice                       upload a voice note (auth required).
- *   GET    /voice/<uid>/<hash>.<ext>    public; auto-expires after 30 days.
+ *   GET    /voice/<uid>/<hash>.<ext>    public; auto-expires after 10 days.
+ *   POST   /image                       upload a chat photo (auth required).
+ *   GET    /image/<uid>/<hash>.<ext>    public; auto-expires after 10 days.
+ *   Profile pictures never expire (they last until the user deletes them).
  *   DELETE /avatar          removes the caller's picture.
  *
  *   Storage is pluggable and picked automatically at runtime:
@@ -361,8 +364,31 @@ export class PushRoom extends DurableObject {
     return new Response(null, { status: 101, webSocket: pair[0] });
   }
 
-  /** Client heartbeats — nothing to do (the runtime handles protocol pings). */
-  async webSocketMessage() {}
+  /**
+   * App-level heartbeats: the client sends `{"type":"ping"}` every 20s and
+   * treats any inbound message as proof of life. Answer with a pong so the
+   * client's stale-connection watchdog never force-reconnects a healthy
+   * socket (which would drop push events in the gap).
+   */
+  async webSocketMessage(message) {
+    if (typeof message !== 'string') return;
+    let parsed;
+    try {
+      parsed = JSON.parse(message);
+    } catch {
+      return;
+    }
+    if (parsed && parsed.type === 'ping') {
+      const pong = JSON.stringify({ type: 'pong' });
+      for (const ws of this.ctx.getWebSockets()) {
+        try {
+          ws.send(pong);
+        } catch {
+          // Socket raced with a disconnect — ignore.
+        }
+      }
+    }
+  }
 
   async webSocketClose() {}
 
@@ -445,10 +471,12 @@ const VOICE_MAX_BYTES = 1024 * 1024; // 1 MB
 const VOICE_MAX_SECONDS = 120;
 
 /**
- * Voice notes expire after 30 days. This is what keeps the card-free 1 GB KV
- * tier viable: storage reaches a steady state instead of growing forever.
+ * Voice notes and chat photos expire after 10 days. This is what keeps the
+ * card-free 1 GB KV tier viable: storage reaches a steady state instead of
+ * growing forever. Profile pictures are NOT given a TTL — they stay until
+ * the user removes them.
  */
-const VOICE_TTL_SECONDS = 30 * 24 * 60 * 60;
+const VOICE_TTL_SECONDS = 10 * 24 * 60 * 60;
 
 const VOICE_TYPES = {
   'audio/mp4': 'm4a',   // AAC-LC in an MP4 container (Android/iOS default)
@@ -464,6 +492,30 @@ const VOICE_EXT_TO_TYPE = {
 };
 
 const VOICE_RATE_LIMIT = 30; // uploads per minute per user
+
+/* ---------------- chat photos ---------------- */
+
+/**
+ * Chat photos use the same storage, the same content-addressed URL scheme
+ * and the same 10-day TTL as voice notes (see VOICE_TTL_SECONDS above).
+ * The app compresses to ~150–400 KB before uploading.
+ */
+const IMAGE_MAX_BYTES = 2 * 1024 * 1024; // 2 MB
+const IMAGE_TTL_SECONDS = VOICE_TTL_SECONDS; // 10 days, same as voice
+const IMAGE_RATE_LIMIT = 15; // uploads per minute per user
+
+const IMAGE_TYPES = {
+  'image/jpeg': 'jpg',
+  'image/jpg': 'jpg',
+  'image/png': 'png',
+  'image/webp': 'webp',
+};
+
+const IMAGE_EXT_TO_TYPE = {
+  jpg: 'image/jpeg',
+  png: 'image/png',
+  webp: 'image/webp',
+};
 
 /**
  * Picks the storage backend. R2 wins when its binding exists so you can add
@@ -624,6 +676,11 @@ function sniffAudioType(bytes) {
 /** `voice/<uid>/<hash>.<ext>` — the object key for a voice note. */
 function voiceKey(uid, hash, ext) {
   return `voice/${uid}/${hash}.${ext}`;
+}
+
+/** `images/<uid>/<hash>.<ext>` — chat photos (same TTL as voice notes). */
+function imageKey(uid, hash, ext) {
+  return `images/${uid}/${hash}.${ext}`;
 }
 
 /* ------------------------------------------------------------------ */
@@ -900,7 +957,7 @@ export default {
       const [, uid, hash, ext] = match;
       const object = await getAvatar(store, voiceKey(uid, hash, ext));
       if (!object) {
-        // Either never existed or aged out of the 30-day window.
+        // Either never existed or aged out of the 10-day window.
         return json({ error: 'This voice message has expired.' }, 404);
       }
 
@@ -983,7 +1040,7 @@ export default {
       const key = voiceKey(uid, hash, ext);
 
       // Unlike avatars, previous notes are NOT deleted — each is its own
-      // message. The 30-day TTL is what bounds total storage.
+      // message. The 10-day TTL is what bounds total storage.
       await putAvatar(store, key, bytes, actualType, VOICE_TTL_SECONDS);
 
       const publicUrl = `${url.origin}/voice/${uid}/${hash}.${ext}`;
@@ -995,6 +1052,121 @@ export default {
         contentType: actualType,
         storage: store.kind,
         expiresInDays: VOICE_TTL_SECONDS / 86400,
+      });
+    }
+
+    /* ---------------- /image (chat photos) ---------------- */
+
+    // Public read: GET /image/<uid>/<hash>.<ext>
+    // No auth — the URL is unguessable (content hash) and is fetched by the
+    // recipient's image loader, which cannot attach headers.
+    if (url.pathname.startsWith('/image/')) {
+      if (request.method !== 'GET' && request.method !== 'HEAD') {
+        return json({ error: 'Use GET /image/<uid>/<hash>.<ext>' }, 405);
+      }
+      const store = avatarStore(env);
+      if (!store) return json({ error: 'Photo storage is not configured.' }, 501);
+
+      const match = url.pathname.match(
+        /^\/image\/([A-Za-z0-9_-]{1,128})\/([a-f0-9]{16})\.(jpg|png|webp)$/,
+      );
+      if (!match) return json({ error: 'Not found.' }, 404);
+
+      const [, uid, hash, ext] = match;
+      const object = await getAvatar(store, imageKey(uid, hash, ext));
+      if (!object) {
+        // Either never existed or aged out of the 10-day window.
+        return json({ error: 'This photo has expired.' }, 404);
+      }
+
+      const etag = object.etag || `"${hash}"`;
+      if (request.headers.get('If-None-Match') === etag) {
+        return new Response(null, {
+          status: 304,
+          headers: { ETag: etag, 'Cache-Control': AVATAR_CACHE_CONTROL },
+        });
+      }
+
+      return new Response(request.method === 'HEAD' ? null : object.body, {
+        headers: {
+          'Content-Type': object.contentType || IMAGE_EXT_TO_TYPE[ext],
+          'Cache-Control': AVATAR_CACHE_CONTROL,
+          ETag: etag,
+          'X-Content-Type-Options': 'nosniff',
+          'Access-Control-Allow-Origin': '*',
+        },
+      });
+    }
+
+    // Upload a chat photo: POST /image (raw image bytes).
+    if (url.pathname === '/image') {
+      const store = avatarStore(env);
+      if (!store) {
+        return json(
+          {
+            error:
+              'Photo storage is not configured: bind AVATARS_KV (or AVATARS_R2) in the dashboard.',
+          },
+          501,
+        );
+      }
+
+      let claims;
+      try {
+        claims = await verifyFirebaseIdToken(bearer(request), env.FIREBASE_PROJECT_ID);
+      } catch (e) {
+        return authError(e);
+      }
+      const uid = claims.sub;
+
+      if (request.method !== 'POST') {
+        return json({ error: 'Use POST /image' }, 405);
+      }
+      if (rateLimited(uid, { bucket: 'image', limit: IMAGE_RATE_LIMIT })) {
+        return json({ error: 'Too many photos — please wait a minute.' }, 429);
+      }
+
+      const declared = parseInt(request.headers.get('Content-Length') || '0', 10);
+      if (declared > IMAGE_MAX_BYTES) {
+        return json({ error: `Photo too large (max ${IMAGE_MAX_BYTES / 1024} KB).` }, 413);
+      }
+
+      const declaredType = (request.headers.get('Content-Type') || '')
+        .split(';')[0]
+        .trim()
+        .toLowerCase();
+      if (!IMAGE_TYPES[declaredType]) {
+        return json(
+          { error: 'Unsupported Content-Type. Use image/jpeg, image/png or image/webp.' },
+          415,
+        );
+      }
+
+      const bytes = new Uint8Array(await request.arrayBuffer());
+      if (bytes.length === 0) return json({ error: 'Empty body.' }, 400);
+      if (bytes.length > IMAGE_MAX_BYTES) {
+        return json({ error: `Photo too large (max ${IMAGE_MAX_BYTES / 1024} KB).` }, 413);
+      }
+
+      const actualType = sniffImageType(bytes);
+      if (!actualType) return json({ error: 'Body is not a JPEG, PNG or WebP image.' }, 415);
+
+      const ext = IMAGE_TYPES[actualType];
+      const hash = await shortHash(bytes);
+      const key = imageKey(uid, hash, ext);
+
+      // Each photo is its own message; the 10-day TTL bounds total storage.
+      await putAvatar(store, key, bytes, actualType, IMAGE_TTL_SECONDS);
+
+      const publicUrl = `${url.origin}/image/${uid}/${hash}.${ext}`;
+      return json({
+        ok: true,
+        url: publicUrl,
+        key,
+        size: bytes.length,
+        contentType: actualType,
+        storage: store.kind,
+        expiresInDays: IMAGE_TTL_SECONDS / 86400,
       });
     }
 
@@ -1032,13 +1204,17 @@ export default {
           'POST /send { to, event, payload } (push event, Authorization: Bearer <id-token>)',
           'POST /avatar (raw image bytes, Authorization: Bearer <id-token>) → { url }',
           'DELETE /avatar (remove your picture, Authorization: Bearer <id-token>)',
-          'GET /avatar/<uid>/<hash>.<ext> (public profile picture)',
+          'GET /avatar/<uid>/<hash>.<ext> (public profile picture, no expiry)',
           'POST /voice (raw audio bytes, Authorization: Bearer <id-token>) → { url }',
-          'GET /voice/<uid>/<hash>.<ext> (public voice note, expires after 30 days)',
+          'GET /voice/<uid>/<hash>.<ext> (public voice note, expires after 10 days)',
+          'POST /image (raw image bytes, Authorization: Bearer <id-token>) → { url }',
+          'GET /image/<uid>/<hash>.<ext> (public chat photo, expires after 10 days)',
         ],
         avatarStorage: store?.kind ?? 'not configured',
         voiceStorage: store?.kind ?? 'not configured',
+        imageStorage: store?.kind ?? 'not configured',
         voiceRetentionDays: VOICE_TTL_SECONDS / 86400,
+        imageRetentionDays: IMAGE_TTL_SECONDS / 86400,
         // Deployment self-check — every field should read `true` on a
         // correctly configured worker:
         //   config.firebaseProjectIdConfigured — [vars] FIREBASE_PROJECT_ID

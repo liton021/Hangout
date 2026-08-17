@@ -11,6 +11,7 @@ import '../models/chat_summary.dart';
 import '../services/auth_service.dart';
 import '../services/avatar_service.dart';
 import '../services/chat_service.dart';
+import '../services/image_message_service.dart';
 import '../services/push_service.dart';
 import '../services/user_service.dart';
 import '../services/voice_note_service.dart';
@@ -111,6 +112,20 @@ final voiceNoteServiceProvider = Provider<VoiceNoteService>((ref) {
   // Release the native recorder when the provider is torn down.
   ref.onDispose(service.dispose);
   return service;
+});
+
+/// Chat photos — compression plus upload to the same Cloudflare Worker.
+final imageMessageServiceProvider = Provider<ImageMessageService>((ref) {
+  return ImageMessageService(
+    idTokenProvider: () async {
+      final user = ref.read(authServiceProvider).currentUser;
+      try {
+        return await user?.getIdToken();
+      } catch (_) {
+        return null;
+      }
+    },
+  );
 });
 
 /// FCM-free push: WebSocket to the Cloudflare Worker + local notifications.

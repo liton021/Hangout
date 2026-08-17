@@ -116,6 +116,26 @@ class AppConfig {
   /// back to text only — no dead mic button.
   static bool get useVoiceServer => voiceServerUrl.isNotEmpty;
 
+  // ────────────────────────────────────────────────────────────────────
+  //  ▼▼▼  CHAT PHOTO HOSTING  ▼▼▼
+  //  Same Cloudflare Worker and KV namespace again. Photos are stored like
+  //  voice notes and also expire automatically — after 10 days — while
+  //  profile pictures never expire. See token_server/README.md.
+  // ────────────────────────────────────────────────────────────────────
+  static const String _imageServerUrl =
+      'https://hangout-token-server.onelitonbd.workers.dev';
+
+  /// Effective image server URL. `--dart-define=IMAGE_SERVER_URL=...`
+  /// overrides the hard-coded value above.
+  static const String imageServerUrl = String.fromEnvironment(
+    'IMAGE_SERVER_URL',
+    defaultValue: _imageServerUrl,
+  );
+
+  /// True when chat photos are available (hides the gallery button when
+  /// the server is not configured).
+  static bool get useImageServer => imageServerUrl.isNotEmpty;
+
   /// True when a token server is configured (secured mode).
   static bool get useTokenServer => tokenServerUrl.isNotEmpty;
 

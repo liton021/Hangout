@@ -1,9 +1,12 @@
 import 'dart:async';
 import 'dart:ui' show FontFeature;
 
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 import 'package:record/record.dart' show Amplitude;
 
@@ -12,6 +15,7 @@ import '../../models/app_user.dart';
 import '../../models/call_data.dart';
 import '../../models/chat_message.dart';
 import '../../providers/providers.dart';
+import '../../services/image_message_service.dart';
 import '../../services/voice_note_service.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/contact_actions.dart';
@@ -81,6 +85,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             authorName: me.displayName?.trim().isNotEmpty == true
                 ? me.displayName!.trim()
                 : 'Hangout user',
+            // Explicit recipient uid — never derived from the chat id, see
+            // ChatService.sendMessage.
+            otherUid: widget.peer.uid,
             text: text,
           );
       _scrollToBottom();
@@ -117,6 +124,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             authorName: me.displayName?.trim().isNotEmpty == true
                 ? me.displayName!.trim()
                 : 'Hangout user',
+            otherUid: widget.peer.uid,
             // Fallback label for the chat list and notifications.
             text: '🎤 Voice message',
             audioUrl: url,
@@ -137,6 +145,87 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     } finally {
       // The temp file has served its purpose either way.
       await recording.discard();
+    }
+  }
+
+  /// Picks a photo from the gallery, compresses it, uploads it and posts it
+  /// as an image message. Mirrors the voice flow (upload → Firestore doc →
+  /// push), so the recipient gets a "🖼️ Photo" notification.
+  ///
+  /// [onProgress] drives the composer's upload indicator.
+  Future<void> _sendImage({
+    required void Function(double) onProgress,
+  }) async {
+    final me = ref.read(authStateProvider).value;
+    if (me == null) return;
+
+    final XFile? picked;
+    try {
+      picked = await ImagePicker().pickImage(
+        source: ImageSource.gallery,
+        maxWidth: 4096,
+        maxHeight: 4096,
+      );
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Could not open your photos. Check the app permissions.'),
+          ),
+        );
+      }
+      return;
+    }
+    if (picked == null || !mounted) return;
+
+    final Uint8List bytes;
+    try {
+      bytes = await picked.readAsBytes();
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('That photo could not be read.')),
+        );
+      }
+      return;
+    }
+    if (bytes.lengthInBytes > kChatImageMaxSourceBytes) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('That photo is too large.')),
+        );
+      }
+      return;
+    }
+
+    try {
+      final url = await ref
+          .read(imageMessageServiceProvider)
+          .upload(bytes, onProgress: onProgress);
+
+      await ref.read(chatServiceProvider).sendMessage(
+            chatId: widget.chatId,
+            authorId: me.uid,
+            authorName: me.displayName?.trim().isNotEmpty == true
+                ? me.displayName!.trim()
+                : 'Hangout user',
+            otherUid: widget.peer.uid,
+            // Fallback label for the chat list and notifications.
+            text: '🖼️ Photo',
+            imageUrl: url,
+          );
+      _scrollToBottom();
+    } on ImageMessageException catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(e.message)));
+      }
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Photo wasn’t sent.')),
+        );
+      }
     }
   }
 
@@ -384,6 +473,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             sending: _sending,
             onSend: _send,
             onSendVoice: _sendVoice,
+            onSendImage: _sendImage,
           ),
         ],
       ),
@@ -408,6 +498,7 @@ class _Composer extends ConsumerStatefulWidget {
     required this.sending,
     required this.onSend,
     required this.onSendVoice,
+    required this.onSendImage,
   });
 
   final TextEditingController controller;
@@ -417,6 +508,9 @@ class _Composer extends ConsumerStatefulWidget {
     VoiceRecording recording, {
     required void Function(double) onProgress,
   }) onSendVoice;
+  final Future<void> Function({
+    required void Function(double) onProgress,
+  }) onSendImage;
 
   @override
   ConsumerState<_Composer> createState() => _ComposerState();
@@ -430,6 +524,7 @@ class _ComposerState extends ConsumerState<_Composer> {
   bool _cancelArmed = false;
   bool _uploading = false;
   double _uploadProgress = 0;
+  String _uploadLabel = 'Sending voice message…';
   Duration _elapsed = Duration.zero;
   double _level = 0;
   Timer? _ticker;
@@ -551,10 +646,35 @@ class _ComposerState extends ConsumerState<_Composer> {
     setState(() {
       _uploading = true;
       _uploadProgress = 0;
+      _uploadLabel = 'Sending voice message…';
     });
 
     await widget.onSendVoice(
       recording,
+      onProgress: (p) {
+        if (mounted) setState(() => _uploadProgress = p);
+      },
+    );
+
+    if (mounted) {
+      setState(() {
+        _uploading = false;
+        _uploadProgress = 0;
+      });
+    }
+  }
+
+  /// Picks and uploads a photo through the parent's [onSendImage] callback,
+  /// driving the same determinate progress bar as voice uploads.
+  Future<void> _pickAndSendImage() async {
+    if (_recording || _uploading) return;
+    setState(() {
+      _uploading = true;
+      _uploadProgress = 0;
+      _uploadLabel = 'Sending photo…';
+    });
+
+    await widget.onSendImage(
       onProgress: (p) {
         if (mounted) setState(() => _uploadProgress = p);
       },
@@ -630,7 +750,7 @@ class _ComposerState extends ConsumerState<_Composer> {
                         size: 15, color: palette.textSecondary),
                     const SizedBox(width: 8),
                     Text(
-                      'Sending voice message…',
+                      _uploadLabel,
                       style: TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.w500,
@@ -681,6 +801,18 @@ class _ComposerState extends ConsumerState<_Composer> {
                       child: Row(
                         crossAxisAlignment: CrossAxisAlignment.end,
                         children: [
+                          // Gallery button — hidden entirely when photos are
+                          // not configured, so there is no dead control.
+                          if (AppConfig.useImageServer)
+                            IconButton(
+                              tooltip: 'Photo',
+                              icon: Icon(
+                                Icons.photo_library_outlined,
+                                color: palette.textSecondary,
+                                size: 24,
+                              ),
+                              onPressed: _pickAndSendImage,
+                            ),
                           Expanded(
                             child: TextField(
                               controller: widget.controller,
@@ -1051,6 +1183,8 @@ class _MessageBubble extends StatelessWidget {
                 seconds: message.audioSeconds,
                 mine: mine,
               )
+            else if (message.isImage)
+              _PhotoBubble(url: message.imageUrl!, mine: mine)
             else
               Text(
                 message.text,
@@ -1102,6 +1236,123 @@ class _MessageBubble extends StatelessWidget {
         ),
       ),
       child: bubble,
+    );
+  }
+}
+
+/// A chat photo inside a message bubble. Tapping it opens the full-screen
+/// viewer (pinch-zoomable).
+class _PhotoBubble extends StatelessWidget {
+  const _PhotoBubble({required this.url, required this.mine});
+
+  final String url;
+  final bool mine;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = context.colors;
+    const size = 230.0;
+
+    return GestureDetector(
+      onTap: () => _openViewer(context),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(14),
+        child: Image.network(
+          url,
+          width: size,
+          height: size,
+          fit: BoxFit.cover,
+          filterQuality: FilterQuality.medium,
+          loadingBuilder: (context, child, progress) {
+            if (progress == null) return child;
+            return Container(
+              width: size,
+              height: size,
+              color: palette.surfaceMuted,
+              alignment: Alignment.center,
+              child: const SizedBox(
+                width: 26,
+                height: 26,
+                child: CircularProgressIndicator(strokeWidth: 2.5),
+              ),
+            );
+          },
+          errorBuilder: (context, error, stack) => Container(
+            width: size,
+            height: size,
+            color: palette.surfaceMuted,
+            alignment: Alignment.center,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  Icons.broken_image_outlined,
+                  size: 34,
+                  color: palette.textSecondary,
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  'Photo expired',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: palette.textSecondary,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _openViewer(BuildContext context) {
+    showDialog<void>(
+      context: context,
+      barrierColor: Colors.black.withOpacity(.92),
+      builder: (_) => Dialog.fullscreen(
+        backgroundColor: Colors.black,
+        child: Stack(
+          children: [
+            Positioned.fill(
+              child: InteractiveViewer(
+                maxScale: 5,
+                child: Center(
+                  child: Image.network(
+                    url,
+                    fit: BoxFit.contain,
+                    filterQuality: FilterQuality.high,
+                    loadingBuilder: (context, child, progress) {
+                      if (progress == null) return child;
+                      return const Center(
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2.5,
+                          color: Colors.white70,
+                        ),
+                      );
+                    },
+                    errorBuilder: (context, error, stack) => const Center(
+                      child: Text(
+                        'This photo has expired.',
+                        style: TextStyle(color: Colors.white70),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            Positioned(
+              top: MediaQuery.paddingOf(context).top + 8,
+              right: 12,
+              child: IconButton(
+                tooltip: 'Close',
+                icon: const Icon(Icons.close_rounded, color: Colors.white),
+                onPressed: () => Navigator.of(context).pop(),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

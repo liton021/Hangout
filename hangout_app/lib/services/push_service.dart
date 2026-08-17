@@ -234,9 +234,12 @@ class PushService with WidgetsBindingObserver {
   void _onEvent(PushEvent event) {
     _eventsController.add(event);
 
-    // While the app is visible, Firestore already updates the UI live —
-    // no system notification needed (and it would be noisy).
-    if (_foreground) return;
+    // Calls while the app is visible are handled by the in-app call screen
+    // (Firestore listener) — a full-screen notification on top would be
+    // duplicative. Messages, however, are always notified: when the app is
+    // in the background that's the only way to hear about them, and in the
+    // foreground users explicitly want the heads-up too.
+    if (_foreground && event.type != PushEventType.newMessage) return;
 
     switch (event.type) {
       case PushEventType.newMessage:
@@ -254,6 +257,9 @@ class PushService with WidgetsBindingObserver {
 
   Future<void> _showMessageNotification(PushEvent event) async {
     final senderName = (event.payload['senderName'] as String?) ?? 'New message';
+    // Text fallbacks match what the sender stored: '🎤 Voice message' /
+    // '🖼️ Photo' — so a voice note or photo shows a sensible label instead
+    // of an empty body.
     final text = (event.payload['text'] as String?) ?? '';
     await _notifications.show(
       _messageNotificationId(event),

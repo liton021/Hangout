@@ -43,18 +43,26 @@ class ChatService {
 
   /// Sends a message and bumps the chat's last-message summary.
   ///
-  /// Pass [audioUrl] and [audioSeconds] to send a voice note instead of text;
-  /// [text] then acts as the fallback label shown in the chat list and in
-  /// notifications.
+  /// Pass [audioUrl]/[audioSeconds] to send a voice note, or [imageUrl] to
+  /// send a photo; [text] then acts as the fallback label shown in the chat
+  /// list and in notifications.
+  ///
+  /// [otherUid] is the *explicit* recipient's Firebase uid. It is required
+  /// because chat ids are `uidA_uidB` joins and Firebase uids can themselves
+  /// contain `_` — deriving the recipient by splitting the chat id produced
+  /// a wrong/garbage uid, so the push notification silently went nowhere.
   Future<void> sendMessage({
     required String chatId,
     required String authorId,
     required String authorName,
+    required String otherUid,
     required String text,
     String? audioUrl,
     int audioSeconds = 0,
+    String? imageUrl,
   }) async {
     final isVoice = (audioUrl ?? '').isNotEmpty;
+    final isImage = (imageUrl ?? '').isNotEmpty;
     final msgRef = _db
         .collection('chats')
         .doc(chatId)
@@ -67,9 +75,14 @@ class ChatService {
       authorId: authorId,
       text: text,
       sentAt: now,
-      kind: isVoice ? MessageKind.voice : MessageKind.text,
+      kind: isVoice
+          ? MessageKind.voice
+          : isImage
+              ? MessageKind.image
+              : MessageKind.text,
       audioUrl: audioUrl,
       audioSeconds: audioSeconds,
+      imageUrl: imageUrl,
     ).toMap());
 
     await _db.collection('chats').doc(chatId).set({
@@ -80,13 +93,6 @@ class ChatService {
 
     // FCM-free push to the other participant (best effort — while the app
     // is in the background this raises the message notification).
-    var otherUid = '';
-    for (final part in chatId.split('_')) {
-      if (part != authorId) {
-        otherUid = part;
-        break;
-      }
-    }
     if (otherUid.isNotEmpty) {
       await _push.send(
         toUid: otherUid,
@@ -98,6 +104,7 @@ class ChatService {
           'text': text,
           'sentAt': now.millisecondsSinceEpoch,
           if (isVoice) 'kind': 'voice',
+          if (isImage) 'kind': 'image',
         },
       );
     }

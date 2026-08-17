@@ -248,15 +248,16 @@ Open your worker URL in a browser:
 https://hangout-token-server.YOURNAME.workers.dev/
 ```
 
-| `avatarStorage` / `voiceStorage` says | Meaning |
+| `avatarStorage` / `voiceStorage` / `imageStorage` says | Meaning |
 |---|---|
 | `"kv"` | ✅ Working — profile pictures **and voice messages** are ready |
 | `"not configured"` | Binding missing or misnamed — redo Step 2 |
 | `"r2"` | An R2 bucket is bound; it takes priority over KV (also fine) |
 
-Both fields always report the same backend — one binding powers both.
+All three fields always report the same backend — one binding powers all three.
 
-> **Voice notes expire after 30 days.** That is deliberate: it keeps storage
+> **Voice notes and chat photos expire after 10 days; profile pictures never
+> expire (they last until the user removes them).** That is deliberate: it keeps storage
 > at a steady state so the free 1 GB tier never fills up. On the free plan the
 > **1,000 KV writes/day** limit is the real ceiling (roughly 1,000 voice notes
 > or avatar changes per day across all users). Adjust the window with
@@ -308,7 +309,7 @@ new APK → make a test call between two devices.
 | `"avatarStorage":"not configured"` | KV namespace not bound to the Worker | Do Part 2B Step 2 — creating the namespace alone is not enough |
 | Mic button missing from the chat composer | `_voiceServerUrl` is empty in `app_config.dart` | Set it to your worker URL (Part 3) |
 | "Voice messages are not set up on the server yet" | Worker deployed but no KV binding | Do Part 2B Step 2 |
-| A voice note plays as "Unavailable" | It is older than 30 days and has expired | Expected — ask the sender to re-record |
+| A voice note plays as "Unavailable" / a photo shows "Photo expired" | It is older than 10 days and has expired | Expected — ask the sender to re-send |
 | "Photo storage is not set up" in the app | Same as above (the app is reporting the Worker's 501) | Do Part 2B Step 2 |
 | Binding added but still "not configured" | Variable name typo | It must be exactly `AVATARS_KV` (uppercase, underscore) |
 | Upload shows "session expired, sign in again" | ⚠️ Almost always **not** a real session problem — the Worker is missing the `FIREBASE_PROJECT_ID` variable, so it rejects every ID token with 401 | Do **Step 5** (add the variable) and redeploy the Worker. Your session is fine — do NOT sign out |
