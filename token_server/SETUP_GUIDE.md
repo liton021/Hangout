@@ -78,42 +78,74 @@ missing. The Worker needs it to verify the app's Firebase ID token.
 > `"firebaseProjectIdConfigured": false`. A broken upload also returns
 > `"errorCode": "server_missing_firebase_project_id"`.
 
-### Step 5B — Bind the PUSH_ROOM Durable Object (for push/WebSocket signaling)
+### Step 5B — Provision the PUSH_ROOM Durable Object (for push/WebSocket signaling)
 
 Background notifications (incoming calls, new-message heads-up) run over a
-WebSocket that lives in a **Durable Object** named `PUSH_ROOM`. If it isn't
-bound, the `/ws` endpoint crashes with Cloudflare's *"Error 1101 — Worker
-threw exception"* and push silently never connects. Set it up once:
+WebSocket that lives in a **Durable Object** named `PUSH_ROOM`.
 
-1. Go to the worker page → **Settings** tab → **Bindings** → **Add binding**.
-2. Choose **Durable Object Namespace**.
-3. **Variable name:** `PUSH_ROOM` — must be exactly this, uppercase with an
-   underscore. This is what the code reads as `env.PUSH_ROOM`.
-4. Under **Durable Object namespace**, the dropdown will be empty because
-   the namespace doesn't exist yet. Choose **Create a new namespace**
-   (it's the last option in the dropdown).
-5. Give the **namespace** a name — e.g. `PUSH_ROOM` (any unique name is
-   fine; it's just the namespace's own identifier).
-6. **Class name:** `PushRoom` ⚠️ — this must match the JavaScript class
-   exported by the Worker code, exactly as written in `worker.js`:
-   ```js
-   export class PushRoom extends DurableObject {
+⚠️ **You cannot create a Durable Object namespace from the dashboard.** If
+you open the Durable Objects page you'll see *"Your account currently has no
+Durable Objects namespaces"* — that's normal. Namespaces are created
+**automatically when you deploy a Worker that exports a Durable Object
+class**, so the correct path is to deploy with `wrangler` (below). This one
+deploy does everything at once:
+
+1. **Install Node.js** if you don't have it (https://nodejs.org).
+
+2. From the `token_server/` folder, log in:
+
+   ```bash
+   npx wrangler login
    ```
-   Capital **P**, capital **R**, no spaces. If the class name doesn't match,
-   the binding points at nothing and `/ws` still fails. (A namespace can
-   only point at one class, so if you later rename the class, create a new
-   namespace too.)
-7. Click **Add binding** / **Deploy**.
 
-> Why are there *two* names? Cloudflare separates them on purpose:
-> the **variable name** is what your code uses (`env.PUSH_ROOM`) and the
-> **class name** is which class in your Worker script actually runs. For
-> this app: variable `PUSH_ROOM` → class `PushRoom`.
+   A browser opens asking you to authorize — click **Allow**.
 
-If you're deploying with `wrangler` instead, you don't need any of this —
-`wrangler.toml` already declares the binding *and* the class name, and the
-`[[migrations]]` block with `new_sqlite_classes = ["PushRoom"]` creates the
-namespace for you on the first deploy.
+3. **Put your real KV namespace id into `wrangler.toml`** — this is
+   required, or the deploy fails / ships without avatar storage. If you
+   already created the KV namespace in the dashboard (it's named
+   `hangout-avatars`), find its id:
+
+   ```bash
+   npx wrangler kv namespace list
+   ```
+
+   Copy the `id` of `hangout-avatars` and paste it into `wrangler.toml` at
+   the `[[kv_namespaces]]` block (replacing `PASTE_YOUR_KV_NAMESPACE_ID_HERE`).
+   If you have no namespace yet, run
+   `npx wrangler kv namespace create AVATARS_KV` and paste the printed id.
+
+4. **Deploy** — this is the step that creates the namespace:
+
+   ```bash
+   npx wrangler deploy
+   ```
+
+   Wrangler provisions the `PushRoom` Durable Object namespace (SQLite
+   backend — declared via `[exports.PushRoom]` in `wrangler.toml`), applies
+   the `FIREBASE_PROJECT_ID` variable and the KV binding, and uploads the
+   fixed worker code. The namespace then appears on the Durable Objects
+   dashboard page.
+
+5. Verify at the worker root — all three must be `true`:
+
+   ```bash
+   https://hangout-token-server.YOURNAME.workers.dev/
+   ```
+
+   → `config.pushRoomConfigured: true`
+
+> What about the class name? You don't type it anywhere — `wrangler.toml`
+> already pairs the binding (`PUSH_ROOM`) with the class (`PushRoom`) and
+> the exports block (`[exports.PushRoom]`) declares the SQLite backend.
+> The binding and exports names must match the class name in `worker.js`
+> exactly — in this repo they already do.
+
+> Your Agora secrets (`AGORA_APP_ID`, `AGORA_APP_CERTIFICATE`) were set in
+> the dashboard and stay on the Worker across `wrangler deploy` — they are
+> stored separately and are not touched. If `/rtc-token` ever reports
+> "Server misconfigured" after a deploy, re-add them with
+> `npx wrangler secret put AGORA_APP_ID` and
+> `npx wrangler secret put AGORA_APP_CERTIFICATE`.
 
 ### Step 6 — Get your worker URL
 On the worker overview page you'll see something like:

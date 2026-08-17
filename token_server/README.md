@@ -35,16 +35,23 @@ One Worker, three jobs — all **free tier, no billing**:
    (no credit card needed).
 
 2. Install Node.js if you don't have it, then from this `token_server/` folder,
-   sign in and create the avatar storage namespace:
+   sign in and get your avatar storage namespace ready:
 
    ```bash
    npx wrangler login                        # opens browser, authorize
-   npx wrangler kv namespace create AVATARS_KV
+   npx wrangler kv namespace list            # find the id of your existing
+                                             # "hangout-avatars" namespace…
    ```
 
-   That prints an `id = "…"` — paste it into the `[[kv_namespaces]]` block in
-   `wrangler.toml` (it ships with a `PASTE_YOUR_KV_NAMESPACE_ID_HERE`
-   placeholder). Then deploy:
+   …and paste that id into the `[[kv_namespaces]]` block in `wrangler.toml`
+   (it ships with a `PASTE_YOUR_KV_NAMESPACE_ID_HERE` placeholder). If you
+   don't have a namespace yet:
+
+   ```bash
+   npx wrangler kv namespace create AVATARS_KV   # prints an id — paste it too
+   ```
+
+   Then deploy:
 
    ```bash
    npx wrangler deploy         # worker + Durable Object ("PushRoom") + KV
@@ -55,6 +62,11 @@ One Worker, three jobs — all **free tier, no billing**:
    `hangout_app/android/app/google-services.json` (here: `litonsgembd`).
    `npx wrangler secret put`-style values are not needed for it; it's a plain
    variable.
+
+   The `[exports.PushRoom]` block in `wrangler.toml` makes this deploy
+   **create the Durable Object namespace automatically** (SQLite backend) —
+   there is nothing to set up in the dashboard, and the dashboard's Durable
+   Objects page will correctly say "no namespaces" until this deploy runs.
 
 3. Set the two secrets (values from https://console.agora.io → your project):
 
