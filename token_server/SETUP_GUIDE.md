@@ -147,6 +147,36 @@ deploy does everything at once:
 > `npx wrangler secret put AGORA_APP_ID` and
 > `npx wrangler secret put AGORA_APP_CERTIFICATE`.
 
+### 🖱️ No terminal? Use the one-click GitHub Actions deploy
+
+You can skip the terminal entirely. The repo ships with a workflow
+(`.github/workflows/deploy-token-server.yml`) that runs the same deploy for
+you, in GitHub's cloud. It also **finds or creates the KV namespace
+automatically** — you never have to look up an id.
+
+1. **Create a Cloudflare API token** (browser only):
+   - https://dash.cloudflare.com → **My Profile** (top right) → **API Tokens**
+     → **Create Token** → use the **"Edit Cloudflare Workers"** template →
+     **Continue** → **Create Token** → copy the token (shown once).
+2. **Copy your Account ID** (browser only):
+   - https://dash.cloudflare.com → **Workers & Pages** → the **Account ID**
+     in the right sidebar → copy it.
+3. **Add both as GitHub secrets** (browser only):
+   - Your GitHub repo → **Settings** → **Secrets and variables** →
+     **Actions** → **New repository secret**:
+     - Name `CLOUDFLARE_API_TOKEN`, paste the token.
+     - Name `CLOUDFLARE_ACCOUNT_ID`, paste the account id.
+4. **Run the deploy** (browser only):
+   - Repo → **Actions** tab → **"Deploy token server"** (left sidebar) →
+     **Run workflow** → green branch → **Run workflow**.
+   - Watch it finish — the last step verifies the worker root and prints
+     `Deployment verified OK ✅` when
+     `pushRoomConfigured`, `firebaseProjectIdConfigured` and
+     `avatarStorageConfigured` are all `true`.
+
+After this first run, the workflow also **auto-deploys on every push** that
+touches the `token_server/` folder — you never need the terminal again.
+
 ### Step 6 — Get your worker URL
 On the worker overview page you'll see something like:
 
