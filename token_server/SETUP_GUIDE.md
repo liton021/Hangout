@@ -157,9 +157,11 @@ ready-to-paste workflow in
    **New workflow** → paste the YAML from that guide — the file is called
    `deploy-token-server.yml`).
 2. Create a Cloudflare API token (My Profile → API Tokens → **"Edit
-   Cloudflare Workers"** template) and copy your Account ID (Workers &
-   Pages → right sidebar).
-3. Add both as repo secrets: `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`.
+   Cloudflare Workers"** template).
+3. Add the required repo secret `CLOUDFLARE_API_TOKEN`. The account id is
+   **optional** — the workflow auto-detects it from the token. (If you want
+   to add it anyway: it's the hex string in the dashboard URL after
+   `dash.cloudflare.com/` — it is *not* your email.)
 4. Repo → **Actions** → **"Deploy token server"** → **Run workflow**.
 
 The workflow runs the same `wrangler deploy`, **finds or creates the KV

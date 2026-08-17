@@ -39,8 +39,11 @@ name: Deploy token server
 #   CLOUDFLARE_API_TOKEN   — dash.cloudflare.com → My Profile →
 #                            API Tokens → Create Token → "Edit Cloudflare
 #                            Workers" template
-#   CLOUDFLARE_ACCOUNT_ID  — dash.cloudflare.com → Workers & Pages →
-#                            right sidebar "Account ID"
+#   CLOUDFLARE_ACCOUNT_ID  — OPTIONAL. Your Account ID is the hex string in
+#                            the dashboard URL after dash.cloudflare.com/
+#                            (it is NOT your email). Auto-detected when the
+#                            token has exactly one account; add it anyway if
+#                            you can find it (see guide Step 2).
 
 on:
   workflow_dispatch:        # the "Run workflow" button
@@ -101,9 +104,25 @@ jobs:
    Token**.
 5. **Copy the token** — it is shown only once.
 
-### Account ID
-1. https://dash.cloudflare.com → sidebar → **Workers & Pages**.
-2. On the right side you'll see **Account ID** → copy it.
+### Account ID (now optional — but good to add)
+
+Your Account ID is **not your email** — it's a 32-character hex string (letters
+and numbers, e.g. `8f3c...a91b`). Three ways to find it:
+
+1. **Address bar (easiest):** log in at https://dash.cloudflare.com and look
+   at the URL — it reads
+   `https://dash.cloudflare.com/<ACCOUNT_ID>/...`
+   The part right after `dash.cloudflare.com/` is your Account ID. Copy it
+   up to the next `/`.
+2. **API Tokens page:** open https://dash.cloudflare.com/profile/api-tokens —
+   the same hex string appears in the URL there too.
+3. **Workers & Pages page:** https://dash.cloudflare.com → **Workers & Pages**
+   → on the right side under *Resources* there's an **Account ID** field with
+   a copy button. (If you don't see it, use method 1 or 2.)
+
+If you skip it, the workflow can usually **auto-detect** the account from your
+API token (when the token belongs to exactly one account). Adding it is
+recommended but not required.
 
 ---
 
@@ -111,9 +130,11 @@ jobs:
 
 1. Your repo → **Settings** → **Secrets and variables** → **Actions**.
 2. **New repository secret**:
-   - Name: `CLOUDFLARE_API_TOKEN` — value: the API token.
-   - **Add secret**, then repeat:
-   - Name: `CLOUDFLARE_ACCOUNT_ID` — value: the account id.
+   - Name: `CLOUDFLARE_API_TOKEN` — value: the API token. **This one is
+     required.** Add it first.
+   - Optional: Name: `CLOUDFLARE_ACCOUNT_ID` — value: the account id from
+     Step 2. If you can't find it, skip it — the workflow auto-detects it
+     from the token.
 
 ---
 

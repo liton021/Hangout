@@ -10,8 +10,9 @@
  * wrangler.toml — so the whole deploy stays a single click with no terminal.
  *
  * Requires the same env vars wrangler uses:
- *   CLOUDFLARE_API_TOKEN
- *   CLOUDFLARE_ACCOUNT_ID
+ *   CLOUDFLARE_API_TOKEN   (required)
+ *   CLOUDFLARE_ACCOUNT_ID  (optional — auto-detected when the token has
+ *                           access to exactly one account)
  */
 
 import { execFileSync } from 'node:child_process';
@@ -25,6 +26,42 @@ const wranglerToml = join(tokenServerDir, 'wrangler.toml');
 
 const PLACEHOLDER = 'PASTE_YOUR_KV_NAMESPACE_ID_HERE';
 const BINDING = 'AVATARS_KV';
+
+/**
+ * Resolves the Cloudflare account id. Uses CLOUDFLARE_ACCOUNT_ID when set;
+ * otherwise asks the Cloudflare API which accounts the token can access and
+ * uses the id when there is exactly one (the common case). This saves users
+ * from having to hunt for the account id in the dashboard.
+ */
+async function resolveAccountId() {
+  if (process.env.CLOUDFLARE_ACCOUNT_ID) {
+    return process.env.CLOUDFLARE_ACCOUNT_ID;
+  }
+  const token = process.env.CLOUDFLARE_API_TOKEN;
+  if (!token) {
+    throw new Error('Missing CLOUDFLARE_API_TOKEN environment variable.');
+  }
+  const res = await fetch('https://api.cloudflare.com/client/v4/accounts', {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  const data = await res.json();
+  if (res.ok && data?.success && Array.isArray(data.result)) {
+    if (data.result.length === 1) {
+      const id = data.result[0].id;
+      console.log(`Auto-detected Cloudflare account id: ${id}`);
+      return id;
+    }
+    throw new Error(
+      `CLOUDFLARE_ACCOUNT_ID is not set and the API token has access to ` +
+        `${data.result.length} accounts. Set CLOUDFLARE_ACCOUNT_ID — see ` +
+        `token_server/GITHUB_ACTIONS_DEPLOY.md for how to find it.`,
+    );
+  }
+  throw new Error(
+    `Could not list accounts (${res.status}): ` +
+      `${JSON.stringify(data).slice(0, 300)}`,
+  );
+}
 
 /** Runs a wrangler command and returns its stdout (with JSON-safe parsing). */
 function wrangler(args) {
@@ -92,12 +129,13 @@ function patchWranglerToml(id) {
   console.log(`Patched wrangler.toml with KV namespace id ${id}`);
 }
 
-if (!process.env.CLOUDFLARE_API_TOKEN || !process.env.CLOUDFLARE_ACCOUNT_ID) {
-  console.error(
-    'Missing CLOUDFLARE_API_TOKEN or CLOUDFLARE_ACCOUNT_ID environment variables.',
-  );
+if (!process.env.CLOUDFLARE_API_TOKEN) {
+  console.error('Missing CLOUDFLARE_API_TOKEN environment variable.');
   process.exit(1);
 }
+
+// Make the resolved id visible to the wrangler commands run below.
+process.env.CLOUDFLARE_ACCOUNT_ID = await resolveAccountId();
 
 const id = ensureNamespace();
 patchWranglerToml(id);
