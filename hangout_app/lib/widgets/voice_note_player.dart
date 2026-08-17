@@ -154,7 +154,7 @@ class _VoiceNotePlayerState extends State<VoiceNotePlayer> {
             playing: _playing,
             loading: _loading,
             failed: _failed,
-            onBlue: onBlue,
+            onBlue: onBubble,
             onTap: _failed ? null : _toggle,
           ),
           const SizedBox(width: 10),
@@ -184,14 +184,10 @@ class _VoiceNotePlayerState extends State<VoiceNotePlayer> {
                             seed: widget.url.hashCode,
                             playedColor: onDarkBubble
                                 ? Colors.white
-                                : onLightBubble
-                                    ? AppColors.accent
-                                    : AppColors.accent,
+                                : AppColors.accent,
                             unplayedColor: onDarkBubble
                                 ? Colors.white38
-                                : onLightBubble
-                                    ? palette.textSecondary.withOpacity(.35)
-                                    : palette.textSecondary.withOpacity(.35),
+                                : palette.textSecondary.withOpacity(.35),
                           ),
                         ),
                       ),
