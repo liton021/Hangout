@@ -313,6 +313,7 @@ new APK → make a test call between two devices.
 | Binding added but still "not configured" | Variable name typo | It must be exactly `AVATARS_KV` (uppercase, underscore) |
 | Upload shows "session expired, sign in again" | ⚠️ Almost always **not** a real session problem — the Worker is missing the `FIREBASE_PROJECT_ID` variable, so it rejects every ID token with 401 | Do **Step 5** (add the variable) and redeploy the Worker. Your session is fine — do NOT sign out |
 | Voice message shows "Unauthorized: server missing FIREBASE_PROJECT_ID" | Same missing variable, surfaced raw by older app builds | Do **Step 5** and redeploy; then update the app (newer builds show a friendly message instead) |
+| Photo/voice says "The server could not verify your login" | The Worker's token-verification code couldn't load Google's signing key (old X.509 code path) | Deploy the updated `worker.js` (JWKS verification) — any deploy of the current `token_server/` folder fixes it |
 | `/ws` (notifications) shows Cloudflare "Error 1101 — Worker threw exception" | `PUSH_ROOM` Durable Object not bound (or its migration never ran) | Do **Step 5B** and redeploy |
 | Push/notifications never arrive | `pushRoomConfigured` is `false` in the `/` self-check | Do **Step 5B** and redeploy |
 | "Too many uploads" | Rate limit (6/min per user) | Wait a minute |

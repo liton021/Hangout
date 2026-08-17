@@ -35,10 +35,10 @@
  *   Bind R2 later and uploads move over with no app change.
  *
  * Auth: both endpoints require an `Authorization: Bearer <firebase-id-token>`
- * header. Tokens are verified against Google's public signing certs (RS256,
- * cached ~6h) — this needs NO Firebase service account, NO Cloud Messaging
- * API, NO billing, and NO extra console configuration. It only needs the
- * Firebase project id (set below via wrangler vars / env).
+ * header. Tokens are verified against Google's public signing keys from the
+ * JWKS endpoint (RS256, cached ~6h) — this needs NO Firebase service account,
+ * NO Cloud Messaging API, NO billing, and NO extra console configuration. It
+ * only needs the Firebase project id (set below via wrangler vars / env).
  *
  * Cost: runs on Cloudflare Workers free plan (100k requests/day incl.
  * WebSocket messages, Durable Objects free tier) — plenty for a small app.
@@ -189,21 +189,38 @@ async function buildRtcToken({ appId, appCert, channel, uid, expire }) {
 /* Firebase ID-token verification (free, no service account needed)   */
 /* ------------------------------------------------------------------ */
 
-const GOOGLE_CERTS_URL =
-  'https://www.googleapis.com/robot/v1/metadata/x509/securetoken@system.gserviceaccount.com';
+const GOOGLE_JWKS_URL =
+  'https://www.googleapis.com/service_accounts/v1/jwk/securetoken@system.gserviceaccount.com';
 const CERTS_TTL_MS = 6 * 60 * 60 * 1000; // 6 hours
 
-let certsCache = null;
-let certsCacheAt = 0;
+let jwksCache = null;
+let jwksCacheAt = 0;
 
-async function googleCerts() {
+/**
+ * Fetches Google's public keys for Firebase Auth ID tokens (RS256) and
+ * returns them as a map of kid → JWK (kty/n/e).
+ *
+ * Why JWKS and not the X.509 cert endpoint: Web Crypto's `importKey('spki')`
+ * requires a bare SubjectPublicKeyInfo structure, but Google's
+ * /metadata/x509/ endpoint serves full X.509 certificates — importing those
+ * throws DataError, so every valid token failed verification with a 401
+ * ("Unauthorized: …") even when the project id was configured correctly.
+ * The JWKS endpoint serves RSA n/e parameters that import cleanly with
+ * `importKey('jwk')`.
+ */
+async function googleJwks() {
   const now = Date.now();
-  if (certsCache && now - certsCacheAt < CERTS_TTL_MS) return certsCache;
-  const res = await fetch(GOOGLE_CERTS_URL);
-  if (!res.ok) throw new Error(`failed to fetch Google certs (${res.status})`);
-  certsCache = await res.json();
-  certsCacheAt = now;
-  return certsCache;
+  if (jwksCache && now - jwksCacheAt < CERTS_TTL_MS) return jwksCache;
+  const res = await fetch(GOOGLE_JWKS_URL);
+  if (!res.ok) throw new Error(`failed to fetch Google signing keys (${res.status})`);
+  const data = await res.json();
+  const byKid = {};
+  for (const key of data.keys || []) {
+    if (key.kid) byKid[key.kid] = key;
+  }
+  jwksCache = byKid;
+  jwksCacheAt = now;
+  return byKid;
 }
 
 function base64UrlDecodeToBytes(str) {
@@ -215,13 +232,6 @@ function base64UrlDecodeToBytes(str) {
 
 function base64UrlDecodeToText(str) {
   return new TextDecoder().decode(base64UrlDecodeToBytes(str));
-}
-
-function pemToBytes(pem) {
-  // Handles any PEM block markers (CERTIFICATE, PUBLIC KEY, RSA PUBLIC KEY…).
-  const b64 = pem.replace(/-----BEGIN [^-]+-----|-----END [^-]+-----|\s+/g, '');
-  const bin = atob(b64);
-  return Uint8Array.from(bin, (c) => c.charCodeAt(0));
 }
 
 /**
@@ -253,8 +263,8 @@ function authError(e) {
 }
 
 /**
- * Verifies a Firebase Auth ID token (RS256) against Google's public certs.
- * Returns the decoded claims (claims.sub === uid).
+ * Verifies a Firebase Auth ID token (RS256) against Google's public signing
+ * keys (JWKS). Returns the decoded claims (claims.sub === uid).
  */
 async function verifyFirebaseIdToken(token, projectId) {
   if (!token) throw new Error('missing Bearer token');
@@ -281,13 +291,19 @@ async function verifyFirebaseIdToken(token, projectId) {
   }
   if (payload.aud !== projectId) throw new Error('wrong audience');
 
-  const certs = await googleCerts();
-  const pem = certs[header.kid];
-  if (!pem) throw new Error('unknown signing key');
+  const jwks = await googleJwks();
+  const jwk = jwks[header.kid];
+  if (!jwk) throw new Error('unknown signing key');
 
   const key = await crypto.subtle.importKey(
-    'spki',
-    pemToBytes(pem),
+    'jwk',
+    {
+      kty: jwk.kty || 'RSA',
+      n: jwk.n,
+      e: jwk.e,
+      alg: 'RS256',
+      use: 'sig',
+    },
     { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' },
     false,
     ['verify'],

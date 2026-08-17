@@ -130,7 +130,7 @@ send it a message/call from another.
 ### `GET /ws?uid=<uid>` — device mailbox (WebSocket)
 
 - Requires header `Authorization: Bearer <firebase-id-token>`; the token is
-  verified against Google's public certs (RS256, cached ~6h) and must match
+  verified against Google's public signing keys via JWKS (RS256, cached ~6h) and must match
   `uid`. No Firebase console changes needed — this is pure JWT verification.
 - Multiple devices per user are supported; offline events are buffered in the
   Durable Object for ~10 minutes (max 25).
