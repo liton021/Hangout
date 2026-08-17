@@ -35,8 +35,7 @@ class _VideoCallScreenState extends ConsumerState<VideoCallScreen> {
   int? _remoteUid;
   bool _joined = false;
   bool _ringing = true;
-  bool _beauty = false;
-  bool _backgroundBlur = false;
+
   String? _error;
 
   int _seconds = 0;
@@ -258,24 +257,6 @@ class _VideoCallScreenState extends ConsumerState<VideoCallScreen> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
-                CallActionButton(
-                  icon: Icons.face_retouching_natural,
-                  active: _beauty,
-                  label: 'Beauty',
-                  onPressed: () async {
-                    setState(() => _beauty = !_beauty);
-                    await _service.setBeauty(_beauty);
-                  },
-                ),
-                CallActionButton(
-                  icon: Icons.blur_on,
-                  active: _backgroundBlur,
-                  label: 'Blur',
-                  onPressed: () async {
-                    setState(() => _backgroundBlur = !_backgroundBlur);
-                    await _service.setBackgroundBlur(_backgroundBlur);
-                  },
-                ),
                 CallActionButton(
                   icon: Icons.switch_camera,
                   label: 'Flip',

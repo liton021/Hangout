@@ -33,8 +33,7 @@ class CallService {
   bool _micOn = true;
   bool _cameraOn = true;
   bool _noiseSuppressionOn = false;
-  bool _beautyOn = false;
-  bool _backgroundBlurOn = false;
+
 
   // ── Network-quality state ────────────────────────────────────────────────
   // Agora QualityType indices: 0 unknown · 1 excellent · 2 good · 3 poor ·
@@ -111,8 +110,7 @@ class CallService {
   bool get micOn => _micOn;
   bool get cameraOn => _cameraOn;
   bool get noiseSuppressionOn => _noiseSuppressionOn;
-  bool get beautyOn => _beautyOn;
-  bool get backgroundBlurOn => _backgroundBlurOn;
+
 
   Stream<int> get onRemoteJoined => _remoteUid.stream;
   Stream<int> get onRemoteLeft => _remoteLeft.stream;
@@ -278,37 +276,11 @@ class CallService {
     }
   }
 
-  Future<void> setBeauty(bool enabled) async {
-    try {
-      await _engine?.setBeautyEffectOptions(
-        enabled: enabled,
-        options: const BeautyOptions(
-          lighteningContrastLevel: LighteningContrastLevel.lighteningContrastNormal,
-          lighteningLevel: 0.5,
-          smoothnessLevel: 0.6,
-          rednessLevel: 0.1,
-          sharpnessLevel: 0.3,
-        ),
-      );
-      _beautyOn = enabled;
-    } catch (_) {}
-  }
-
-  Future<void> setBackgroundBlur(bool enabled) async {
-    try {
-      await _engine?.enableVirtualBackground(
-        enabled: enabled,
-        backgroundSource: const VirtualBackgroundSource(
-          backgroundSourceType: BackgroundSourceType.backgroundBlur,
-          blurDegree: BackgroundBlurDegree.blurDegreeHigh,
-        ),
-        segproperty: const SegmentationProperty(
-          modelType: SegModelType.segModelAi,
-        ),
-      );
-      _backgroundBlurOn = enabled;
-    } catch (_) {}
-  }
+  // Beauty filter and background blur were removed to cut APK size. They
+  // required Agora's video-preprocess and segmentation native extensions,
+  // which together added several MB per ABI. The matching .so files are
+  // excluded in android/app/build.gradle — restoring these features means
+  // dropping those excludes too, or the calls fail silently at runtime.
 
   // ── Adaptive quality core ────────────────────────────────────────────────
   // QualityType values (Agora): 0 unknown · 1 excellent · 2 good · 3 poor ·
