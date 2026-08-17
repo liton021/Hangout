@@ -22,6 +22,7 @@ class CallQualityIndicator extends StatelessWidget {
     required this.networkQuality,
     this.videoQuality,
     required this.audioQuality,
+    this.compact = false,
   });
 
   /// Current network quality from Agora (0–6).
@@ -33,7 +34,39 @@ class CallQualityIndicator extends StatelessWidget {
   /// Audio quality tier: "High", "Normal", or "Low".
   final String audioQuality;
 
+  /// Icons-only mode: drops every text label ("Excellent", "720p", "High")
+  /// and just tints a signal / camera / mic glyph by its tier.
+  ///
+  /// Used by the video call screen, where the overlay has to stay out of the
+  /// way of the picture; the audio screen keeps the labelled version because
+  /// it has a whole empty gradient to fill.
+  final bool compact;
+
   bool get _isPoor => networkQuality >= 3;
+
+  /// Tier colour for the video rung — green at 720p+, amber mid, red low.
+  Color get _videoColor {
+    final label = videoQuality;
+    if (label == null) return Colors.white70;
+    final lines = int.tryParse(label.replaceAll(RegExp(r'[^0-9]'), '')) ?? 0;
+    if (lines >= 720) return const Color(0xFF22C55E);
+    if (lines >= 360) return const Color(0xFFEAB308);
+    return const Color(0xFFEF4444);
+  }
+
+  /// Tier colour for the audio profile.
+  Color get _audioColor {
+    switch (audioQuality) {
+      case 'High':
+        return const Color(0xFF22C55E);
+      case 'Normal':
+        return const Color(0xFFEAB308);
+      case 'Low':
+        return const Color(0xFFEF4444);
+      default:
+        return Colors.white70;
+    }
+  }
 
   /// Icon and color for the network quality bar.
   /// Uses signal_cellular_alt (exists in every Flutter version since 1.0)
@@ -75,6 +108,8 @@ class CallQualityIndicator extends StatelessWidget {
   Widget build(BuildContext context) {
     // Don't show anything until we have a real quality reading.
     if (networkQuality == 0) return const SizedBox.shrink();
+
+    if (compact) return _buildCompact();
 
     final opacity = _isPoor ? 0.85 : 0.65;
 
@@ -136,6 +171,37 @@ class CallQualityIndicator extends StatelessWidget {
                 color: Colors.white70,
               ),
             ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// The slim, icons-only bar used over live video.
+  ///
+  /// Three glyphs — signal, camera, mic — each tinted by its own tier, with
+  /// no text at all. Semantics still carry the full reading so screen
+  /// readers (and tests) are not left with a row of bare icons.
+  Widget _buildCompact() {
+    return Semantics(
+      label: 'Connection $_networkLabel, '
+          'video ${videoQuality ?? "off"}, audio $audioQuality',
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        decoration: BoxDecoration(
+          color: Colors.black.withOpacity(0.42),
+          borderRadius: BorderRadius.circular(999),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(_networkIcon, size: 15, color: _networkColor),
+            if (videoQuality != null) ...[
+              const SizedBox(width: 9),
+              Icon(Icons.videocam_rounded, size: 15, color: _videoColor),
+            ],
+            const SizedBox(width: 9),
+            Icon(Icons.mic_rounded, size: 15, color: _audioColor),
           ],
         ),
       ),

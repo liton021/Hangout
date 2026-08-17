@@ -7,6 +7,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:record/record.dart';
 
 import '../config/app_config.dart';
+import 'upload_client.dart';
 
 /// Longest voice note we allow. Matches `VOICE_MAX_SECONDS` in the Worker.
 const int kVoiceMaxSeconds = 120;
@@ -219,36 +220,28 @@ class VoiceNoteService {
       throw const VoiceNoteException('You need to be signed in to do that.');
     }
 
-    final uri = Uri.parse(AppConfig.voiceServerUrl).replace(path: '/voice');
-    final client = HttpClient()..connectionTimeout = const Duration(seconds: 15);
     try {
-      final request = await client.postUrl(uri);
-      request.headers.set(HttpHeaders.authorizationHeader, 'Bearer $token');
-      request.headers.set(HttpHeaders.contentTypeHeader, 'audio/mp4');
-      request.headers.set(HttpHeaders.contentLengthHeader, bytes.length);
-
-      // Chunked writes so the progress indicator moves on slow links.
-      const chunkSize = 32 * 1024;
-      for (var offset = 0; offset < bytes.length; offset += chunkSize) {
-        final end = offset + chunkSize < bytes.length
-            ? offset + chunkSize
-            : bytes.length;
-        request.add(bytes.sublist(offset, end));
-        await request.flush();
+      final response = await postBytes(
+        uri: _endpoint(),
+        bytes: bytes,
+        // The recorder writes AAC-LC in an MP4 container (.m4a); the Worker
+        // sniffs the magic bytes and only accepts a matching declared type.
+        contentType: 'audio/mp4',
+        bearerToken: token,
+        onProgress: onProgress,
         // Upload occupies the 5%–90% band.
-        onProgress?.call(0.05 + 0.85 * (end / bytes.length));
-      }
-
-      final response =
-          await request.close().timeout(const Duration(seconds: 60));
-      final body = await response.transform(utf8.decoder).join();
+        progressStart: 0.05,
+        progressEnd: 0.90,
+      );
       onProgress?.call(0.95);
 
-      if (response.statusCode != 200) {
-        throw VoiceNoteException(_errorFrom(body, response.statusCode));
+      if (!response.ok) {
+        throw VoiceNoteException(
+          _errorFrom(response.body, response.statusCode),
+        );
       }
 
-      final data = jsonDecode(body) as Map<String, dynamic>;
+      final data = jsonDecode(response.body) as Map<String, dynamic>;
       final url = data['url'] as String?;
       if (url == null || url.isEmpty) {
         throw const VoiceNoteException(
@@ -257,6 +250,8 @@ class VoiceNoteService {
       }
       onProgress?.call(1);
       return url;
+    } on VoiceNoteException {
+      rethrow;
     } on SocketException {
       throw const VoiceNoteException(
         'No internet connection. Check your network and try again.',
@@ -269,9 +264,18 @@ class VoiceNoteService {
       throw const VoiceNoteException(
         'The upload timed out. Please try again.',
       );
-    } finally {
-      client.close();
+    } on FormatException {
+      throw const VoiceNoteException(
+        'The server sent an unexpected response. Please try again.',
+      );
     }
+  }
+
+  /// Builds the `/voice` endpoint URL, preserving any path on the base URL.
+  Uri _endpoint() {
+    final base = Uri.parse(AppConfig.voiceServerUrl);
+    final prefix = base.path.replaceAll(RegExp(r'/+$'), '');
+    return base.replace(path: '$prefix/voice', query: '');
   }
 
   /// Turns a Worker error body into something worth showing a user.

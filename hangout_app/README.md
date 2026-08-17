@@ -128,6 +128,20 @@ one-minute notes per day are sustainable indefinitely on 1 GB. In practice the
 free KV **write** limit (1,000/day) is the real ceiling, not storage. Tune the
 window with `VOICE_TTL_SECONDS` in `token_server/worker.js`.
 
+> ⚠️ **`wrangler.toml` ships a placeholder KV id**
+> (`PASTE_YOUR_KV_NAMESPACE_ID_HERE`). The currently deployed Worker has a
+> real namespace bound, so uploads work today — but a `wrangler deploy`
+> straight from this repo would overwrite that binding and every upload would
+> start failing with *"photo storage is not set up on the server yet"* (HTTP
+> 501). Paste your real namespace id before deploying. Check which backend a
+> deployment is using at any time with:
+>
+> ```bash
+> curl https://<your-worker>.workers.dev/
+> # → {"avatarStorage":"kv", "voiceStorage":"kv", ...}
+> # "not configured" here means the binding is missing.
+> ```
+
 Skipping this step is safe — calls and text chat work exactly as before. The
 app shows a clear "photo storage is not set up" message for avatars, and the
 mic button is **hidden entirely** (the send button simply stays disabled on an

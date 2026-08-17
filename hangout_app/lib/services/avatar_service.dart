@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
@@ -6,6 +7,7 @@ import 'package:flutter/foundation.dart';
 import 'package:image/image.dart' as img;
 
 import '../config/app_config.dart';
+import 'upload_client.dart';
 
 /// Square size (px) every avatar is normalised to before upload.
 ///
@@ -152,36 +154,28 @@ class AvatarService {
       throw const AvatarUploadException('You need to be signed in to do that.');
     }
 
-    final uri = Uri.parse(AppConfig.avatarServerUrl).replace(path: '/avatar');
-    final client = HttpClient()..connectionTimeout = const Duration(seconds: 15);
+    final uri = _endpoint();
     try {
-      final request = await client.postUrl(uri);
-      request.headers.set(HttpHeaders.authorizationHeader, 'Bearer $token');
-      request.headers.set(HttpHeaders.contentTypeHeader, 'image/jpeg');
-      request.headers.set(HttpHeaders.contentLengthHeader, processed.length);
-
-      // Write in chunks so the progress ring actually moves on slow links.
-      const chunkSize = 32 * 1024;
-      for (var offset = 0; offset < processed.length; offset += chunkSize) {
-        final end =
-            offset + chunkSize < processed.length ? offset + chunkSize : processed.length;
-        request.add(processed.sublist(offset, end));
-        await request.flush();
+      final response = await postBytes(
+        uri: uri,
+        bytes: processed,
+        contentType: 'image/jpeg',
+        bearerToken: token,
+        responseTimeout: const Duration(seconds: 45),
+        onProgress: onProgress,
         // Upload occupies the 15%–90% band of the progress bar.
-        onProgress?.call(0.15 + 0.75 * (end / processed.length));
-      }
-
-      final response = await request.close().timeout(
-            const Duration(seconds: 45),
-          );
-      final body = await response.transform(utf8.decoder).join();
+        progressStart: 0.15,
+        progressEnd: 0.90,
+      );
       onProgress?.call(0.95);
 
-      if (response.statusCode != 200) {
-        throw AvatarUploadException(_errorFrom(body, response.statusCode));
+      if (!response.ok) {
+        throw AvatarUploadException(
+          _errorFrom(response.body, response.statusCode),
+        );
       }
 
-      final data = jsonDecode(body) as Map<String, dynamic>;
+      final data = jsonDecode(response.body) as Map<String, dynamic>;
       final url = data['url'] as String?;
       if (url == null || url.isEmpty) {
         throw const AvatarUploadException(
@@ -190,17 +184,36 @@ class AvatarService {
       }
       onProgress?.call(1);
       return url;
+    } on AvatarUploadException {
+      rethrow;
     } on SocketException {
       throw const AvatarUploadException(
         'No internet connection. Check your network and try again.',
+      );
+    } on TimeoutException {
+      throw const AvatarUploadException(
+        'The upload timed out. Please try again.',
       );
     } on HttpException {
       throw const AvatarUploadException(
         'Could not reach the server. Please try again.',
       );
-    } finally {
-      client.close();
+    } on FormatException {
+      throw const AvatarUploadException(
+        'The server sent an unexpected response. Please try again.',
+      );
     }
+  }
+
+  /// Builds the `/avatar` endpoint URL.
+  ///
+  /// `Uri.replace(path: …)` on its own drops any path the configured base URL
+  /// carries (e.g. a Worker mounted on `example.com/api`), so join the two
+  /// instead of overwriting.
+  Uri _endpoint() {
+    final base = Uri.parse(AppConfig.avatarServerUrl);
+    final prefix = base.path.replaceAll(RegExp(r'/+$'), '');
+    return base.replace(path: '$prefix/avatar', query: '');
   }
 
   /// Removes the signed-in user's picture from storage.
@@ -211,22 +224,30 @@ class AvatarService {
       throw const AvatarUploadException('You need to be signed in to do that.');
     }
 
-    final uri = Uri.parse(AppConfig.avatarServerUrl).replace(path: '/avatar');
-    final client = HttpClient()..connectionTimeout = const Duration(seconds: 15);
     try {
-      final request = await client.deleteUrl(uri);
-      request.headers.set(HttpHeaders.authorizationHeader, 'Bearer $token');
-      final response = await request.close();
-      final body = await response.transform(utf8.decoder).join();
-      if (response.statusCode != 200) {
-        throw AvatarUploadException(_errorFrom(body, response.statusCode));
+      final response = await deleteWithToken(
+        uri: _endpoint(),
+        bearerToken: token,
+      );
+      if (!response.ok) {
+        throw AvatarUploadException(
+          _errorFrom(response.body, response.statusCode),
+        );
       }
+    } on AvatarUploadException {
+      rethrow;
     } on SocketException {
       throw const AvatarUploadException(
         'No internet connection. Check your network and try again.',
       );
-    } finally {
-      client.close();
+    } on TimeoutException {
+      throw const AvatarUploadException(
+        'The request timed out. Please try again.',
+      );
+    } on HttpException {
+      throw const AvatarUploadException(
+        'Could not reach the server. Please try again.',
+      );
     }
   }
 
