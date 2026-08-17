@@ -541,7 +541,9 @@ class _ComposerState extends ConsumerState<_Composer> {
 
   // ── voice recording state ────────────────────────────────────────────
   bool _recording = false;
-  bool _cancelArmed = false;
+
+  /// True while the take is paused (recording continues on resume).
+  bool _paused = false;
   bool _uploading = false;
   double _uploadProgress = 0;
   String _uploadLabel = 'Sending voice message…';
@@ -549,10 +551,6 @@ class _ComposerState extends ConsumerState<_Composer> {
   double _level = 0;
   Timer? _ticker;
   StreamSubscription<Amplitude>? _amplitudeSub;
-  double _dragDx = 0;
-
-  /// How far left the user must slide to abort the recording.
-  static const double _cancelThreshold = 90;
 
   /// Captured once so [dispose] never has to touch `ref` — reading a
   /// provider while the container is being torn down can throw.
@@ -575,6 +573,10 @@ class _ComposerState extends ConsumerState<_Composer> {
     super.dispose();
   }
 
+  /// Starts a recording with a plain tap on the mic button.
+  ///
+  /// Recording continues until the user pauses (button becomes a pause
+  /// control), and the take can then be resumed, sent or discarded.
   Future<void> _startRecording() async {
     if (_recording || _uploading) return;
     final service = ref.read(voiceNoteServiceProvider);
@@ -592,24 +594,27 @@ class _ComposerState extends ConsumerState<_Composer> {
     HapticFeedback.mediumImpact();
     setState(() {
       _recording = true;
-      _cancelArmed = false;
+      _paused = false;
       _elapsed = Duration.zero;
-      _dragDx = 0;
       _level = 0;
     });
 
-    _ticker = Timer.periodic(const Duration(milliseconds: 200), (_) {
-      if (!mounted || !_recording) return;
-      setState(() => _elapsed += const Duration(milliseconds: 200));
-      // Stop exactly at the cap rather than letting the server reject it.
-      if (_elapsed >= kVoiceMaxDuration) _finishRecording();
-    });
-
+    _startTicker();
     _amplitudeSub = service.amplitudeStream().listen((amp) {
-      if (!mounted) return;
+      if (!mounted || _paused) return;
       // dBFS is roughly -60 (silence) → 0 (clipping).
       final normalised = ((amp.current + 45) / 45).clamp(0.0, 1.0).toDouble();
       setState(() => _level = normalised);
+    });
+  }
+
+  void _startTicker() {
+    _ticker?.cancel();
+    _ticker = Timer.periodic(const Duration(milliseconds: 200), (_) {
+      if (!mounted || !_recording || _paused) return;
+      setState(() => _elapsed += const Duration(milliseconds: 200));
+      // Stop exactly at the cap rather than letting the server reject it.
+      if (_elapsed >= kVoiceMaxDuration) _sendRecording();
     });
   }
 
@@ -620,24 +625,50 @@ class _ComposerState extends ConsumerState<_Composer> {
     _amplitudeSub = null;
   }
 
+  /// Pauses the take: the elapsed clock freezes and the bar switches to the
+  /// paused controls (continue / send / cancel).
+  Future<void> _pauseRecording() async {
+    if (!_recording || _paused) return;
+    _ticker?.cancel();
+    _ticker = null;
+    await ref.read(voiceNoteServiceProvider).pause();
+    if (mounted) {
+      HapticFeedback.selectionClick();
+      setState(() => _paused = true);
+    }
+  }
+
+  /// Resumes a paused take.
+  Future<void> _resumeRecording() async {
+    if (!_recording || !_paused) return;
+    await ref.read(voiceNoteServiceProvider).resume();
+    if (mounted) {
+      HapticFeedback.selectionClick();
+      setState(() => _paused = false);
+    }
+    _startTicker();
+  }
+
+  /// Discards the take and deletes the partial file.
   Future<void> _cancelRecording() async {
     if (!_recording) return;
     _stopTimers();
     setState(() {
       _recording = false;
-      _cancelArmed = false;
-      _dragDx = 0;
+      _paused = false;
+      _elapsed = Duration.zero;
     });
     HapticFeedback.lightImpact();
     await ref.read(voiceNoteServiceProvider).cancel();
   }
 
-  Future<void> _finishRecording() async {
+  /// Stops the take (from either state) and sends it as a voice message.
+  Future<void> _sendRecording() async {
     if (!_recording) return;
     _stopTimers();
     setState(() {
       _recording = false;
-      _dragDx = 0;
+      _paused = false;
     });
 
     final service = ref.read(voiceNoteServiceProvider);
@@ -656,7 +687,7 @@ class _ComposerState extends ConsumerState<_Composer> {
       // Too short to be deliberate — say so instead of failing silently.
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Hold the mic to record.')),
+          const SnackBar(content: Text('Recording too short.')),
         );
       }
       return;
@@ -680,6 +711,7 @@ class _ComposerState extends ConsumerState<_Composer> {
       setState(() {
         _uploading = false;
         _uploadProgress = 0;
+        _elapsed = Duration.zero;
       });
     }
   }
@@ -795,19 +827,24 @@ class _ComposerState extends ConsumerState<_Composer> {
             Padding(
               padding: const EdgeInsets.fromLTRB(8, 8, 8, 8),
               child: Row(
-                crossAxisAlignment: CrossAxisAlignment.end,
+                crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  // Only the left-hand side swaps while recording. The mic
-                  // button below must stay mounted for the whole press —
-                  // rebuilding it mid-gesture would kill the long-press and
-                  // the recording could never be stopped.
-                  if (_recording)
+                  // Only the left-hand side swaps while recording. While the
+                  // take is live it shows the pulsing recording bar; once
+                  // paused it shows the continue / send / cancel controls.
+                  if (_recording && !_paused)
                     Expanded(
                       child: _RecordingBar(
                         elapsed: _formatElapsed(_elapsed),
                         level: _level,
-                        cancelArmed: _cancelArmed,
-                        dragDx: _dragDx,
+                      ),
+                    )
+                  else if (_recording && _paused)
+                    Expanded(
+                      child: _PausedBar(
+                        elapsed: _formatElapsed(_elapsed),
+                        onSend: _sendRecording,
+                        onCancel: _cancelRecording,
                       ),
                     )
                   else
@@ -819,7 +856,10 @@ class _ComposerState extends ConsumerState<_Composer> {
                         borderRadius: BorderRadius.circular(AppRadius.xl),
                       ),
                       child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.end,
+                        // Photo & emoji buttons sit vertically centred
+                        // against the text field, like every modern
+                        // messenger.
+                        crossAxisAlignment: CrossAxisAlignment.center,
                         children: [
                           // Gallery button — hidden entirely when photos are
                           // not configured, so there is no dead control.
@@ -875,98 +915,87 @@ class _ComposerState extends ConsumerState<_Composer> {
                     valueListenable: widget.controller,
                     builder: (context, value, _) {
                       final hasText = value.text.trim().isNotEmpty;
-                      // With text -> send. Empty -> hold to record, but only
-                      // when voice is actually configured; otherwise the
-                      // button stays a disabled send button rather than a
-                      // mic that does nothing.
-                      final voiceMode = !hasText && AppConfig.useVoiceServer;
-                      final active = hasText || voiceMode;
 
-                      final button = Container(
-                        width: 48,
-                        height: 48,
-                        decoration: BoxDecoration(
-                          color: active ? AppColors.accent : palette.surfaceMuted,
-                          shape: BoxShape.circle,
-                          boxShadow: active
-                              ? const [
-                                  BoxShadow(
-                                    color: Color(0x4D3390EC),
-                                    blurRadius: 16,
-                                    offset: Offset(0, 6),
-                                  ),
-                                ]
-                              : null,
-                        ),
-                        child: Material(
-                        color: Colors.transparent,
-                        shape: const CircleBorder(),
-                        child: InkWell(
-                          customBorder: const CircleBorder(),
-                          onTap: hasText && !widget.sending
-                              ? widget.onSend
-                              : voiceMode
-                                  // A plain tap is a common mistake — tell
-                                  // the user what to do instead.
-                                  ? () => ScaffoldMessenger.of(context)
-                                      .showSnackBar(const SnackBar(
-                                      content: Text('Hold to record a voice message.'),
-                                      duration: Duration(seconds: 2),
-                                    ))
-                                  : null,
-                          child: SizedBox(
-                            width: 48,
-                            height: 48,
-                            child: widget.sending
-                                ? const Padding(
-                                    padding: EdgeInsets.all(14),
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                      color: Colors.white,
+                      // The round button's action changes with state:
+                      //   idle + text   → send
+                      //   idle + empty  → mic (tap to START recording)
+                      //   recording     → pause (tap to pause the take)
+                      //   paused        → play (resume; bar holds send/cancel)
+                      final busy = _uploading || widget.sending;
+                      IconData icon;
+                      String? tooltip;
+                      VoidCallback? onTap;
+                      final active = !busy && (hasText || AppConfig.useVoiceServer || _recording);
+
+                      if (busy) {
+                        icon = _recording ? Icons.pause_rounded : Icons.send_rounded;
+                      } else if (_recording && !_paused) {
+                        icon = Icons.pause_rounded;
+                        tooltip = 'Pause recording';
+                        onTap = _pauseRecording;
+                      } else if (_recording && _paused) {
+                        icon = Icons.play_arrow_rounded;
+                        tooltip = 'Continue recording';
+                        onTap = _resumeRecording;
+                      } else if (hasText) {
+                        icon = Icons.send_rounded;
+                        tooltip = 'Send';
+                        onTap = widget.onSend;
+                      } else if (AppConfig.useVoiceServer) {
+                        icon = Icons.mic_rounded;
+                        tooltip = 'Record a voice message';
+                        onTap = _startRecording;
+                      } else {
+                        icon = Icons.send_rounded;
+                      }
+
+                      return Tooltip(
+                        message: tooltip ?? '',
+                        child: Container(
+                          width: 48,
+                          height: 48,
+                          decoration: BoxDecoration(
+                            color:
+                                active ? AppColors.accent : palette.surfaceMuted,
+                            shape: BoxShape.circle,
+                            boxShadow: active
+                                ? const [
+                                    BoxShadow(
+                                      color: Color(0x4D3390EC),
+                                      blurRadius: 16,
+                                      offset: Offset(0, 6),
                                     ),
-                                  )
-                                : Icon(
-                                    // Only ever show a mic when it does
-                                    // something; otherwise this stays an
-                                    // inert send button.
-                                    voiceMode
-                                        ? Icons.mic_rounded
-                                        : Icons.send_rounded,
-                                    color: active
-                                        ? Colors.white
-                                        : palette.textSecondary,
-                                    size: voiceMode ? 22 : 21,
-                                  ),
+                                  ]
+                                : null,
+                          ),
+                          child: Material(
+                            color: Colors.transparent,
+                            shape: const CircleBorder(),
+                            child: InkWell(
+                              customBorder: const CircleBorder(),
+                              onTap: onTap,
+                              child: SizedBox(
+                                width: 48,
+                                height: 48,
+                                child: busy
+                                    ? const Padding(
+                                        padding: EdgeInsets.all(14),
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                          color: Colors.white,
+                                        ),
+                                      )
+                                    : Icon(
+                                        icon,
+                                        color: active
+                                            ? Colors.white
+                                            : palette.textSecondary,
+                                        size: 22,
+                                      ),
+                              ),
+                            ),
                           ),
                         ),
-                      ),
-                      );
-
-                      if (!voiceMode || _uploading) return button;
-
-                      // Press-and-hold to record; slide left to abort.
-                      return GestureDetector(
-                        onLongPressStart: (_) => _startRecording(),
-                        onLongPressEnd: (_) {
-                          if (_cancelArmed) {
-                            _cancelRecording();
-                          } else {
-                            _finishRecording();
-                          }
-                        },
-                        onLongPressMoveUpdate: (details) {
-                          if (!_recording) return;
-                          final dx = details.localOffsetFromOrigin.dx;
-                          final armed = dx < -_cancelThreshold;
-                          if (armed != _cancelArmed) {
-                            HapticFeedback.selectionClick();
-                          }
-                          setState(() {
-                            _dragDx = dx.clamp(-160.0, 0.0).toDouble();
-                            _cancelArmed = armed;
-                          });
-                        },
-                        child: button,
                       );
                     },
                   ),
@@ -981,94 +1010,169 @@ class _ComposerState extends ConsumerState<_Composer> {
 }
 
 /// Replaces the text field while a voice note is being recorded: a pulsing
-/// red dot, the elapsed time, a live level meter and a slide-to-cancel hint.
+/// red dot, the elapsed time and a live level meter. Tap the round pause
+/// button (right) to pause the take.
 class _RecordingBar extends StatelessWidget {
   const _RecordingBar({
     required this.elapsed,
     required this.level,
-    required this.cancelArmed,
-    required this.dragDx,
   });
 
   final String elapsed;
   final double level;
-  final bool cancelArmed;
-  final double dragDx;
 
   @override
   Widget build(BuildContext context) {
     final palette = context.colors;
-    // Fade the bar out as the finger slides towards the cancel threshold.
-    final slideProgress = (dragDx.abs() / 90).clamp(0.0, 1.0).toDouble();
+    return Container(
+      height: 48,
+      padding: const EdgeInsets.symmetric(horizontal: 14),
+      decoration: BoxDecoration(
+        color: palette.surfaceAlt,
+        borderRadius: BorderRadius.circular(AppRadius.xl),
+      ),
+      child: Row(
+        children: [
+          const _PulsingDot(active: true),
+          const SizedBox(width: 10),
+          Text(
+            elapsed,
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+              fontFeatures: const [FontFeature.tabularFigures()],
+              color: palette.textPrimary,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: _LevelMeter(level: level, color: AppColors.accent),
+          ),
+        ],
+      ),
+    );
+  }
+}
 
-    return Opacity(
-              opacity: cancelArmed ? 0.45 : 1.0,
-              child: Container(
-                height: 48,
-                padding: const EdgeInsets.symmetric(horizontal: 14),
-                decoration: BoxDecoration(
-                  color: cancelArmed
-                      ? Colors.red.withOpacity(.12)
-                      : palette.surfaceAlt,
-                  borderRadius: BorderRadius.circular(AppRadius.xl),
-                ),
-                child: Row(
-                  children: [
-                    _PulsingDot(active: !cancelArmed),
-                    const SizedBox(width: 10),
-                    Text(
-                      elapsed,
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                        fontFeatures: const [FontFeature.tabularFigures()],
-                        color: palette.textPrimary,
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: _LevelMeter(
-                        level: level,
-                        color: cancelArmed
-                            ? Colors.red.withOpacity(.5)
-                            : AppColors.accent,
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    // The hint slides with the finger, then flips to a
-                    // "release to cancel" affordance.
-                    Transform.translate(
-                      offset: Offset(dragDx * .35, 0),
-                      child: cancelArmed
-                          ? const Text(
-                              'Release to cancel',
-                              style: TextStyle(
-                                fontSize: 12.5,
-                                fontWeight: FontWeight.w700,
-                                color: Colors.red,
-                              ),
-                            )
-                          : Opacity(
-                              opacity: 1 - slideProgress * .6,
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Icon(Icons.chevron_left_rounded,
-                                      size: 17, color: palette.textSecondary),
-                                  Text(
-                                    'Slide to cancel',
-                                    style: TextStyle(
-                                      fontSize: 12.5,
-                                      color: palette.textSecondary,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                    ),
-                  ],
+/// Shown while a take is paused: frozen elapsed time plus the choice to send
+/// the note as-is or discard it. Continue lives on the round button (play).
+class _PausedBar extends StatelessWidget {
+  const _PausedBar({
+    required this.elapsed,
+    required this.onSend,
+    required this.onCancel,
+  });
+
+  final String elapsed;
+  final VoidCallback onSend;
+  final VoidCallback onCancel;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = context.colors;
+    return Container(
+      height: 48,
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      decoration: BoxDecoration(
+        color: palette.surfaceAlt,
+        borderRadius: BorderRadius.circular(AppRadius.xl),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.pause_circle_filled_rounded,
+              size: 18, color: palette.textSecondary),
+          const SizedBox(width: 8),
+          Text(
+            'Paused',
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              color: palette.textSecondary,
+            ),
+          ),
+          const SizedBox(width: 8),
+          Text(
+            elapsed,
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+              fontFeatures: const [FontFeature.tabularFigures()],
+              color: palette.textPrimary,
+            ),
+          ),
+          const Spacer(),
+          _PillAction(
+            icon: Icons.send_rounded,
+            label: 'Send',
+            onTap: onSend,
+            emphasized: true,
+          ),
+          const SizedBox(width: 6),
+          _PillAction(
+            icon: Icons.delete_outline_rounded,
+            label: 'Cancel',
+            onTap: onCancel,
+            danger: true,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// A small pill button inside the paused bar.
+class _PillAction extends StatelessWidget {
+  const _PillAction({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+    this.emphasized = false,
+    this.danger = false,
+  });
+
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+  final bool emphasized;
+  final bool danger;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = context.colors;
+    final foreground = danger
+        ? AppColors.danger
+        : emphasized
+            ? Colors.white
+            : palette.textPrimary;
+    return Material(
+      color: danger
+          ? Colors.transparent
+          : emphasized
+              ? AppColors.accent
+              : palette.surfaceMuted,
+      borderRadius: BorderRadius.circular(AppRadius.pill),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(AppRadius.pill),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, size: 15, color: foreground),
+              const SizedBox(width: 4),
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w600,
+                  color: foreground,
                 ),
               ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

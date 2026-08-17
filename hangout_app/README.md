@@ -4,7 +4,7 @@ A modern **Android** messaging + voice/video calling app built with **Flutter**,
 featuring:
 
 - 💬 1-on-1 real-time messaging (Firestore)
-- 🎤 Voice messages — hold to record, slide to cancel, 10-day retention
+- 🎤 Voice messages — tap to record, pause/resume, send or cancel, 10-day retention
 - 🖼️ Photo messages — gallery picker, 10-day retention
 - 📞 Audio & video calls (Agora RTC)
 - 🎙️ **Built-in noise suppression** (free SDK DSP: noise suppression + echo

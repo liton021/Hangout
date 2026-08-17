@@ -73,6 +73,10 @@ class VoiceNoteService {
   String? _activePath;
   DateTime? _startedAt;
 
+  /// Seconds of actual recording accumulated across pause/resume cycles —
+  /// paused time never counts towards the note's duration.
+  Duration _accumulated = Duration.zero;
+
   /// True while a recording session is open.
   Future<bool> get isRecording => _recorder.isRecording();
 
@@ -121,6 +125,32 @@ class VoiceNoteService {
 
     _activePath = path;
     _startedAt = DateTime.now();
+    _accumulated = Duration.zero;
+  }
+
+  /// Pauses the current recording. The note's duration keeps accumulating
+  /// only while actually recording — paused time is never counted.
+  Future<void> pause() async {
+    if (_startedAt == null) return; // not recording, or already paused
+    try {
+      await _recorder.pause();
+    } catch (_) {
+      // Some devices reject pause mid-take; treat it as a no-op rather than
+      // losing the recording.
+    }
+    _accumulated += DateTime.now().difference(_startedAt!);
+    _startedAt = null;
+  }
+
+  /// Resumes a paused recording.
+  Future<void> resume() async {
+    if (_startedAt != null) return; // already recording
+    try {
+      await _recorder.resume();
+    } catch (_) {
+      // Best effort — the take stays paused if the device refuses.
+    }
+    _startedAt = DateTime.now();
   }
 
   /// Stops recording and returns the finished file.
@@ -130,7 +160,14 @@ class VoiceNoteService {
   Future<VoiceRecording?> stop() async {
     if (!await _recorder.isRecording()) return null;
 
-    final startedAt = _startedAt;
+    // Fold the final (possibly mid-recording) segment in before stopping,
+    // then clear state.
+    if (_startedAt != null) {
+      _accumulated += DateTime.now().difference(_startedAt!);
+      _startedAt = null;
+    }
+    final duration = _accumulated;
+
     String? path;
     try {
       path = await _recorder.stop();
@@ -138,16 +175,12 @@ class VoiceNoteService {
       throw VoiceNoteException('Recording failed: $e');
     } finally {
       _activePath = null;
-      _startedAt = null;
+      _accumulated = Duration.zero;
     }
 
     if (path == null) return null;
     final file = File(path);
     if (!await file.exists()) return null;
-
-    final duration = startedAt == null
-        ? Duration.zero
-        : DateTime.now().difference(startedAt);
 
     if (duration < kVoiceMinDuration) {
       try {
@@ -179,6 +212,7 @@ class VoiceNoteService {
     final path = _activePath;
     _activePath = null;
     _startedAt = null;
+    _accumulated = Duration.zero;
     if (path != null) {
       try {
         final file = File(path);
