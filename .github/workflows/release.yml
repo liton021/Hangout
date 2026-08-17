@@ -1,0 +1,50 @@
+name: Build and Release APK
+
+# Runs when you push a version tag like v1.0.1. Builds only the arm64-v8a
+# (v8) APK to keep download size small and attaches it to a GitHub Release.
+on:
+  push:
+    tags: ['v*.*.*']
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '17'
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.24.0'
+          channel: 'stable'
+
+      - name: Install dependencies
+        working-directory: hangout_app
+        run: flutter pub get
+
+      - name: Build release APKs per ABI
+        working-directory: hangout_app
+        run: flutter build apk --release --split-per-abi
+
+      - name: Keep only arm64-v8a APK and rename
+        working-directory: hangout_app
+        run: |
+          ls build/app/outputs/flutter-apk/
+          mv build/app/outputs/flutter-apk/app-arm64-v8a-release.apk \
+             build/app/outputs/flutter-apk/Hangout-${{ github.ref_name }}-arm64-v8a.apk
+
+      - name: Upload arm64-v8a APK to GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: hangout_app/build/app/outputs/flutter-apk/Hangout-${{ github.ref_name }}-arm64-v8a.apk
+          generate_release_notes: true
