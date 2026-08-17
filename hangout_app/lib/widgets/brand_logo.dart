@@ -3,6 +3,11 @@ import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
 
 /// The in-app version of the Hangout mark used by the launcher and splash UI.
+///
+/// Mirrors the launcher icon exactly: a speech bubble with the "H" monogram
+/// knocked out of it, on the brand gradient. The geometry below matches
+/// `design/build_logo.py`, which generates the Android mipmaps — keep the two
+/// in sync if the mark is ever redrawn.
 class BrandLogo extends StatelessWidget {
   const BrandLogo({super.key, this.size = 48, this.showShadow = false});
 
@@ -16,7 +21,7 @@ class BrandLogo extends StatelessWidget {
       height: size,
       decoration: BoxDecoration(
         gradient: AppColors.brandGradient,
-        borderRadius: BorderRadius.circular(size * .3),
+        borderRadius: BorderRadius.circular(size * .234),
         boxShadow: showShadow
             ? [
                 BoxShadow(
@@ -32,45 +37,57 @@ class BrandLogo extends StatelessWidget {
   }
 }
 
+/// Draws the bubble + tail in white, then punches the H through it so the
+/// gradient behind shows within the letter.
 class _LogoPainter extends CustomPainter {
+  // Fractions of the tile, identical to the values in design/build_logo.py.
+  static const double _bubbleCx = .500;
+  static const double _bubbleCy = .459;
+  static const double _bubbleR = .293;
+  static const double _hW = .244;
+  static const double _hH = .283;
+  static const double _hStroke = .0645;
+
+  static const List<Offset> _tail = [
+    Offset(.312, .648),
+    Offset(.247, .836),
+    Offset(.456, .694),
+  ];
+
   @override
   void paint(Canvas canvas, Size size) {
-    final unit = size.shortestSide;
-    final paint = Paint()..color = Colors.white;
-    final bubble = RRect.fromRectAndRadius(
-      Rect.fromLTWH(
-        size.width * .21,
-        size.height * .22,
-        size.width * .58,
-        size.height * .47,
-      ),
-      Radius.circular(unit * .16),
-    );
-    canvas.drawRRect(bubble, paint);
+    final w = size.width;
+    final h = size.height;
+    final cx = w * _bubbleCx;
+    final cy = h * _bubbleCy;
 
-    final tail = Path()
-      ..moveTo(size.width * .31, size.height * .64)
-      ..lineTo(size.width * .27, size.height * .79)
-      ..lineTo(size.width * .46, size.height * .67)
-      ..close();
-    canvas.drawPath(tail, paint);
+    // saveLayer so BlendMode.clear carves the H out of the bubble only,
+    // leaving the gradient container underneath untouched.
+    canvas.saveLayer(Offset.zero & size, Paint());
 
-    final cutout = Paint()..color = AppColors.accentDeep;
-    canvas.drawCircle(
-      Offset(size.width * .40, size.height * .455),
-      unit * .038,
-      cutout,
+    final white = Paint()..color = Colors.white;
+    canvas.drawCircle(Offset(cx, cy), w * _bubbleR, white);
+    canvas.drawPath(
+      Path()
+        ..moveTo(w * _tail[0].dx, h * _tail[0].dy)
+        ..lineTo(w * _tail[1].dx, h * _tail[1].dy)
+        ..lineTo(w * _tail[2].dx, h * _tail[2].dy)
+        ..close(),
+      white,
     );
-    canvas.drawCircle(
-      Offset(size.width * .51, size.height * .455),
-      unit * .038,
-      cutout,
-    );
-    canvas.drawCircle(
-      Offset(size.width * .62, size.height * .455),
-      unit * .038,
-      cutout,
-    );
+
+    final cut = Paint()..blendMode = BlendMode.clear;
+    final hw = w * _hW;
+    final hh = h * _hH;
+    final st = w * _hStroke;
+    final left = cx - hw / 2;
+    final top = cy - hh / 2;
+
+    canvas.drawRect(Rect.fromLTWH(left, top, st, hh), cut);
+    canvas.drawRect(Rect.fromLTWH(left + hw - st, top, st, hh), cut);
+    canvas.drawRect(Rect.fromLTWH(left, cy - st / 2, hw, st), cut);
+
+    canvas.restore();
   }
 
   @override

@@ -1,12 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Status-bar notification icon: the Hangout speech bubble with the "H"
+    knocked out of it.
+
+    Android tints small notification icons a flat colour and uses only the
+    alpha channel, so this must be a silhouette: solid shape, with the letter
+    cut out as transparency (even-odd fill). Any colour here is ignored.
+-->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="24dp"
     android:height="24dp"
     android:viewportWidth="24"
     android:viewportHeight="24">
+    <!--
+        Outer path  : bubble circle (r=7.03 at 12,11.02) + tail.
+        Inner paths : the H, wound so even-odd makes it a hole.
+        Geometry mirrors design/build_logo.py (fractions x24).
+    -->
     <path
         android:fillColor="#FFFFFF"
-        android:pathData="M12,12m-10,0a10,10 0,1 1,20 0a10,10 0,1 1,-20 0" />
-    <path
-        android:fillColor="#6C5CE7"
-        android:pathData="M19.5,8.5c0,1.93 -1.57,3.5 -3.5,3.5s-3.5,-1.57 -3.5,-3.5S14.07,5 16,5s3.5,1.57 3.5,3.5zM6.5,9.25c0,0.69 0.56,1.25 1.25,1.25h8.5c0.69,0 1.25,-0.56 1.25,-1.25s-0.56,-1.25 -1.25,-1.25h-8.5c-0.69,0 -1.25,0.56 -1.25,1.25zM7.75,13.5h8.5c0.69,0 1.25,0.56 1.25,1.25s-0.56,1.25 -1.25,1.25h-8.5c-0.69,0 -1.25,-0.56 -1.25,-1.25s0.56,-1.25 1.25,-1.25z" />
+        android:fillType="evenOdd"
+        android:pathData="M12,4c3.88,0 7.03,3.15 7.03,7.03c0,3.88 -3.15,7.03 -7.03,7.03c-0.62,0 -1.22,-0.08 -1.79,-0.23l-4.28,2.91l1.33,-3.85c-1.39,-1.28 -2.26,-3.12 -2.26,-5.16c0,-3.88 3.15,-7.03 7.03,-7.03zM9.07,7.62v6.8h1.55v-2.62h2.76v2.62h1.55v-6.8h-1.55v2.62h-2.76v-2.62z" />
 </vector>
