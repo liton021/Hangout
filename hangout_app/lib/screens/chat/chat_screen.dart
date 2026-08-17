@@ -410,14 +410,19 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       body: Column(
         children: [
           Expanded(
-            child: messages.when(
-              loading: () => const LoadingState(),
-              error: (_, __) => const EmptyState(
-                icon: Icons.cloud_off_rounded,
-                title: 'Messages unavailable',
-                subtitle: 'Check your connection and try again.',
-              ),
-              data: (list) {
+            // A whisper of color behind the conversation instead of a flat
+            // slab — dark gets a cool lift, light gets warm white.
+            child: Container(
+              decoration:
+                  BoxDecoration(gradient: palette.chatBackground),
+              child: messages.when(
+                loading: () => const LoadingState(),
+                error: (_, __) => const EmptyState(
+                  icon: Icons.cloud_off_rounded,
+                  title: 'Messages unavailable',
+                  subtitle: 'Check your connection and try again.',
+                ),
+                data: (list) {
                 if (list.isEmpty) {
                   return EmptyState(
                     icon: Icons.waving_hand_rounded,
@@ -465,7 +470,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                     );
                   },
                 );
-              },
+                },
+              ),
             ),
           ),
           _Composer(
@@ -862,10 +868,26 @@ class _ComposerState extends ConsumerState<_Composer> {
                       final voiceMode = !hasText && AppConfig.useVoiceServer;
                       final active = hasText || voiceMode;
 
-                      final button = Material(
-                        color: active
-                            ? AppColors.accent
-                            : palette.surfaceMuted,
+                      final button = Container(
+                        width: 48,
+                        height: 48,
+                        decoration: BoxDecoration(
+                          gradient:
+                              active ? AppColors.vividGradient : null,
+                          color: active ? null : palette.surfaceMuted,
+                          shape: BoxShape.circle,
+                          boxShadow: active
+                              ? const [
+                                  BoxShadow(
+                                    color: Color(0x4D6D5CE8),
+                                    blurRadius: 16,
+                                    offset: Offset(0, 6),
+                                  ),
+                                ]
+                              : null,
+                        ),
+                        child: Material(
+                        color: Colors.transparent,
                         shape: const CircleBorder(),
                         child: InkWell(
                           customBorder: const CircleBorder(),
@@ -905,6 +927,7 @@ class _ComposerState extends ConsumerState<_Composer> {
                                   ),
                           ),
                         ),
+                      ),
                       );
 
                       if (!voiceMode || _uploading) return button;
@@ -1163,13 +1186,28 @@ class _MessageBubble extends StatelessWidget {
         constraints:
             BoxConstraints(maxWidth: MediaQuery.sizeOf(context).width * .78),
         decoration: BoxDecoration(
-          color: mine ? AppColors.accent : palette.surface,
+          // Outgoing bubbles wear the brand blue→violet sweep; incoming stay
+          // calm on the surface with a whisper of a border.
+          gradient: mine ? AppColors.chatBubbleGradient : null,
+          color: mine ? null : palette.surface,
+          border: mine
+              ? null
+              : Border.all(color: palette.divider, width: .8),
           borderRadius: BorderRadius.only(
             topLeft: mine ? big : (startsGroup ? big : small),
             topRight: mine ? (startsGroup ? big : small) : big,
             bottomLeft: mine ? big : (endsGroup ? big : small),
             bottomRight: mine ? (endsGroup ? big : small) : big,
           ),
+          boxShadow: mine
+              ? const [
+                  BoxShadow(
+                    color: Color(0x3D6D5CE8),
+                    blurRadius: 14,
+                    offset: Offset(0, 5),
+                  ),
+                ]
+              : null,
         ),
         child: Wrap(
           alignment: WrapAlignment.end,
@@ -1380,15 +1418,19 @@ class _DayLabel extends StatelessWidget {
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
           decoration: BoxDecoration(
-            color: context.colors.surface,
+            color: context.colors.accentSurface,
             borderRadius: BorderRadius.circular(AppRadius.pill),
+            border: Border.all(
+              color: context.colors.accentSurface,
+              width: .8,
+            ),
           ),
           child: Text(
             label,
             style: TextStyle(
-              color: context.colors.textSecondary,
+              color: context.colors.accentSoft,
               fontSize: 11.5,
-              fontWeight: FontWeight.w600,
+              fontWeight: FontWeight.w700,
               letterSpacing: 0.3,
             ),
           ),

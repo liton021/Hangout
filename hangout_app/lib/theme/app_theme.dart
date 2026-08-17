@@ -66,6 +66,21 @@ class AppColors {
     colors: [Color(0xFF4F8DF8), Color(0xFF2563EB)],
   );
 
+  /// "Hangout 2.0" vivid gradient — blue sweeping into violet. Used for the
+  /// active nav pill, send button, gradient titles and highlights.
+  static const LinearGradient vividGradient = LinearGradient(
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+    colors: [Color(0xFF4E8CF7), Color(0xFF8B5CF6)],
+  );
+
+  /// Outgoing message bubbles: a soft blue→violet sweep, Messenger-style.
+  static const LinearGradient chatBubbleGradient = LinearGradient(
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+    colors: [Color(0xFF4E8CF7), Color(0xFF6D5CE8)],
+  );
+
   /// Call screens: near-black with a faint blue lift.
   static const LinearGradient callGradient = LinearGradient(
     begin: Alignment.topCenter,
@@ -86,6 +101,59 @@ class AppColors {
     end: Alignment.bottomCenter,
     colors: [Color(0xFFFFFFFF), Color(0xFFF4F5F8)],
   );
+
+  /// Chat canvas (dark): a very subtle cool lift at the top so the
+  /// conversation doesn't sit on a dead-black slab.
+  static const LinearGradient chatBackgroundDark = LinearGradient(
+    begin: Alignment.topCenter,
+    end: Alignment.bottomCenter,
+    colors: [Color(0xFF11131C), Color(0xFF0A0A0C)],
+  );
+
+  /// Chat canvas (light): warm white melting into the app gray.
+  static const LinearGradient chatBackgroundLight = LinearGradient(
+    begin: Alignment.topCenter,
+    end: Alignment.bottomCenter,
+    colors: [Color(0xFFFDFDFF), Color(0xFFF4F5F8)],
+  );
+
+  // ── Avatar gradients ────────────────────────────────────────────────────
+  /// Deterministic per-contact gradient set (Telegram-style color avatars).
+  /// Picked by hashing the name so the same person always gets the same
+  /// color, on every device.
+  static const List<LinearGradient> avatarGradients = [
+    LinearGradient(
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+        colors: [Color(0xFF4F8DF8), Color(0xFF2563EB)]), // blue
+    LinearGradient(
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+        colors: [Color(0xFF8B5CF6), Color(0xFF6D28D9)]), // violet
+    LinearGradient(
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+        colors: [Color(0xFFEC4899), Color(0xFFBE185D)]), // pink
+    LinearGradient(
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+        colors: [Color(0xFFF59E0B), Color(0xFFEA580C)]), // amber
+    LinearGradient(
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+        colors: [Color(0xFF10B981), Color(0xFF047857)]), // emerald
+    LinearGradient(
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+        colors: [Color(0xFF06B6D4), Color(0xFF0E7490)]), // cyan
+  ];
+
+  /// Picks a stable avatar gradient for [seed] (usually the user's name).
+  /// Summing code units keeps the choice identical across devices and runs.
+  static LinearGradient avatarGradientFor(String seed) {
+    final sum = seed.codeUnits.fold<int>(0, (a, b) => a + b);
+    return avatarGradients[sum % avatarGradients.length];
+  }
 
   // ── Elevation ────────────────────────────────────────────────────────────
   static const List<BoxShadow> cardShadow = [
@@ -147,6 +215,7 @@ class HangoutPalette extends ThemeExtension<HangoutPalette> {
     required this.onAccentSoft,
     required this.accentSurface,
     required this.canvasGradient,
+    required this.chatBackground,
   });
 
   final Color canvas; // screen background
@@ -172,6 +241,9 @@ class HangoutPalette extends ThemeExtension<HangoutPalette> {
   /// Full-screen backdrop behind splash / auth screens.
   final Gradient canvasGradient;
 
+  /// Conversation backdrop behind the message list.
+  final Gradient chatBackground;
+
   static const HangoutPalette dark = HangoutPalette(
     canvas: AppColors.canvas,
     canvasElevated: AppColors.canvasElevated,
@@ -186,6 +258,7 @@ class HangoutPalette extends ThemeExtension<HangoutPalette> {
     onAccentSoft: AppColors.onAccentSoft,
     accentSurface: AppColors.accentSurface,
     canvasGradient: AppColors.canvasGradient,
+    chatBackground: AppColors.chatBackgroundDark,
   );
 
   static const HangoutPalette light = HangoutPalette(
@@ -202,6 +275,7 @@ class HangoutPalette extends ThemeExtension<HangoutPalette> {
     onAccentSoft: Colors.white,
     accentSurface: AppColors.lightAccentSurface,
     canvasGradient: AppColors.lightCanvasGradient,
+    chatBackground: AppColors.chatBackgroundLight,
   );
 
   @override
@@ -219,6 +293,7 @@ class HangoutPalette extends ThemeExtension<HangoutPalette> {
     Color? onAccentSoft,
     Color? accentSurface,
     Gradient? canvasGradient,
+    Gradient? chatBackground,
   }) {
     return HangoutPalette(
       canvas: canvas ?? this.canvas,
@@ -234,6 +309,7 @@ class HangoutPalette extends ThemeExtension<HangoutPalette> {
       onAccentSoft: onAccentSoft ?? this.onAccentSoft,
       accentSurface: accentSurface ?? this.accentSurface,
       canvasGradient: canvasGradient ?? this.canvasGradient,
+      chatBackground: chatBackground ?? this.chatBackground,
     );
   }
 
@@ -255,6 +331,8 @@ class HangoutPalette extends ThemeExtension<HangoutPalette> {
       accentSurface: Color.lerp(accentSurface, other.accentSurface, t)!,
       canvasGradient:
           Gradient.lerp(canvasGradient, other.canvasGradient, t)!,
+      chatBackground:
+          Gradient.lerp(chatBackground, other.chatBackground, t)!,
     );
   }
 }

@@ -2,8 +2,9 @@ import 'package:flutter/material.dart';
 
 import '../theme/app_theme.dart';
 
-/// Bottom navigation from the design: four labelled tabs where the active one
-/// sits inside a solid blue rounded pill.
+/// "Hangout 2.0" bottom navigation: a floating rounded pill with a soft
+/// shadow. The active tab sits inside the brand blue→violet gradient with a
+/// gentle icon bounce — Messenger-style, but ours.
 class HangoutNavBar extends StatelessWidget {
   const HangoutNavBar({
     super.key,
@@ -26,14 +27,23 @@ class HangoutNavBar extends StatelessWidget {
   Widget build(BuildContext context) {
     final palette = context.colors;
     return Container(
+      margin: const EdgeInsets.fromLTRB(14, 0, 14, 10),
       decoration: BoxDecoration(
         color: palette.canvasElevated,
-        border: Border(top: BorderSide(color: palette.divider, width: 1)),
+        borderRadius: BorderRadius.circular(AppRadius.xl),
+        border: Border.all(color: palette.divider, width: 1),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(context.isDark ? .45 : .10),
+            blurRadius: 24,
+            offset: const Offset(0, 10),
+          ),
+        ],
       ),
       child: SafeArea(
         top: false,
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 7),
           child: Row(
             children: [
               for (var i = 0; i < items.length; i++)
@@ -73,8 +83,8 @@ class _NavItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final foreground =
-        selected ? Colors.white : context.colors.textSecondary;
+    final palette = context.colors;
+    final foreground = selected ? Colors.white : palette.textSecondary;
 
     return Semantics(
       selected: selected,
@@ -82,33 +92,51 @@ class _NavItem extends StatelessWidget {
       label: spec.label,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(AppRadius.md),
+        borderRadius: BorderRadius.circular(AppRadius.lg),
         child: AnimatedContainer(
-          duration: const Duration(milliseconds: 180),
-          curve: Curves.easeOut,
-          margin: const EdgeInsets.symmetric(horizontal: 6),
-          padding: const EdgeInsets.symmetric(vertical: 8),
+          duration: const Duration(milliseconds: 220),
+          curve: Curves.easeOutCubic,
+          margin: const EdgeInsets.symmetric(horizontal: 4),
+          padding: const EdgeInsets.symmetric(vertical: 9),
           decoration: BoxDecoration(
-            color: selected ? AppColors.accent : Colors.transparent,
-            borderRadius: BorderRadius.circular(AppRadius.md),
+            gradient: selected ? AppColors.vividGradient : null,
+            color: selected ? null : Colors.transparent,
+            borderRadius: BorderRadius.circular(AppRadius.lg),
+            boxShadow: selected
+                ? const [
+                    BoxShadow(
+                      color: Color(0x4D6D5CE8),
+                      blurRadius: 14,
+                      offset: Offset(0, 5),
+                    ),
+                  ]
+                : null,
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(
-                selected ? spec.selectedIcon : spec.icon,
-                size: 24,
-                color: foreground,
+              AnimatedScale(
+                scale: selected ? 1.08 : 1.0,
+                duration: const Duration(milliseconds: 220),
+                curve: Curves.easeOutBack,
+                child: Icon(
+                  selected ? spec.selectedIcon : spec.icon,
+                  size: 24,
+                  color: foreground,
+                ),
               ),
-              const SizedBox(height: 4),
-              Text(
-                spec.label,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
+              const SizedBox(height: 3),
+              AnimatedDefaultTextStyle(
+                duration: const Duration(milliseconds: 180),
                 style: TextStyle(
                   fontSize: 12.5,
-                  fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
+                  fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
                   color: foreground,
+                ),
+                child: Text(
+                  spec.label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
             ],

@@ -404,7 +404,7 @@ class _EditableAvatar extends StatelessWidget {
               child: Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: AppColors.accent,
+                  gradient: AppColors.vividGradient,
                   shape: BoxShape.circle,
                   border: Border.all(color: palette.surface, width: 3),
                 ),

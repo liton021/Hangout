@@ -10,7 +10,10 @@ featuring:
 - 🎙️ **Built-in noise suppression** (free SDK DSP: noise suppression + echo
   cancellation + auto gain — no paid extension)
 - ✨ **Video filters** — beauty/skin smoothing, background blur, camera flip
-- 🎨 Modern Material 3 UI (light + dark), Riverpod state management
+- 🎨 **Hangout 2.0 UI** — blue→violet brand gradients, gradient message
+  bubbles, per-contact gradient avatars, floating pill navigation,
+  gradient titles, day pills and a glow send button (light + dark)
+- ⚙️ Riverpod state management
 
 Stack (see `../RESEARCH_REPORT.md` and `../AGORA_AND_CHAT_DECISION.md`):
 

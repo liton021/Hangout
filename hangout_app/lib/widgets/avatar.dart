@@ -42,9 +42,9 @@ class UserAvatar extends StatelessWidget {
                 url!,
                 fit: BoxFit.cover,
                 errorBuilder: (_, __, ___) =>
-                    _initials(diameter, context.colors),
+                    _initials(diameter),
               )
-            : _initials(diameter, context.colors),
+            : _initials(diameter),
       ),
     );
 
@@ -78,20 +78,21 @@ class UserAvatar extends StatelessWidget {
     );
   }
 
-  Widget _initials(double diameter, HangoutPalette colors) {
+  Widget _initials(double diameter) {
     return Container(
       width: diameter,
       height: diameter,
       decoration: BoxDecoration(
-        color: colors.surfaceMuted,
+        // Telegram-style: every contact gets a stable color from their name.
+        gradient: AppColors.avatarGradientFor(user.name),
         shape: BoxShape.circle,
       ),
       alignment: Alignment.center,
       child: Text(
         user.initials,
         style: TextStyle(
-          color: colors.accentSoft,
-          fontWeight: FontWeight.w600,
+          color: Colors.white,
+          fontWeight: FontWeight.w700,
           fontSize: radius * 0.8,
           letterSpacing: 0.2,
         ),
@@ -100,8 +101,8 @@ class UserAvatar extends StatelessWidget {
   }
 }
 
-/// Flat charcoal circle holding an icon — used for group chats and for
-/// contacts without a photo in compact rows.
+/// Rounded circle holding an icon — used for group chats and for contacts
+/// without a photo in compact rows.
 class IconAvatar extends StatelessWidget {
   const IconAvatar({
     super.key,
@@ -109,6 +110,7 @@ class IconAvatar extends StatelessWidget {
     this.radius = 24,
     this.background,
     this.foreground,
+    this.gradient,
   });
 
   final IconData icon;
@@ -119,6 +121,10 @@ class IconAvatar extends StatelessWidget {
   final Color? background;
   final Color? foreground;
 
+  /// When set, paints the disc with this gradient instead of [background]
+  /// (used for brand-tinted icons such as the FAB).
+  final Gradient? gradient;
+
   @override
   Widget build(BuildContext context) {
     final palette = context.colors;
@@ -126,14 +132,15 @@ class IconAvatar extends StatelessWidget {
       width: radius * 2,
       height: radius * 2,
       decoration: BoxDecoration(
-        color: background ?? palette.surfaceMuted,
+        color: gradient == null ? (background ?? palette.surfaceMuted) : null,
+        gradient: gradient,
         shape: BoxShape.circle,
       ),
       alignment: Alignment.center,
       child: Icon(
         icon,
         size: radius * 0.95,
-        color: foreground ?? palette.textSecondary,
+        color: foreground ?? (gradient != null ? Colors.white : palette.textSecondary),
       ),
     );
   }

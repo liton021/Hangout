@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 
 import '../theme/app_theme.dart';
+import 'gradient_text.dart';
 
 /// The header used on every home tab: a small profile avatar on the left, the
-/// screen title in periwinkle, and icon actions on the right.
+/// screen title painted with the brand gradient, and icon actions on the
+/// right.
 class AppHeader extends StatelessWidget {
   const AppHeader({
     super.key,
@@ -20,16 +22,15 @@ class AppHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final titleText = Text(
+    final titleText = GradientText(
       title,
       maxLines: 1,
       overflow: TextOverflow.ellipsis,
       textAlign: centerTitle ? TextAlign.center : TextAlign.start,
-      style: TextStyle(
+      style: const TextStyle(
         fontSize: 24,
         fontWeight: FontWeight.w800,
         letterSpacing: -0.5,
-        color: context.colors.accentSoft,
       ),
     );
 
@@ -103,15 +104,26 @@ class CircleAccentButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return Tooltip(
       message: tooltip,
-      child: Material(
-        color: AppColors.accent,
-        shape: const CircleBorder(),
-        child: InkWell(
-          customBorder: const CircleBorder(),
-          onTap: onPressed,
-          child: SizedBox(
-            width: size,
-            height: size,
+      child: Container(
+        width: size,
+        height: size,
+        decoration: const BoxDecoration(
+          gradient: AppColors.vividGradient,
+          shape: BoxShape.circle,
+          boxShadow: [
+            BoxShadow(
+              color: Color(0x4D6D5CE8),
+              blurRadius: 12,
+              offset: Offset(0, 5),
+            ),
+          ],
+        ),
+        child: Material(
+          color: Colors.transparent,
+          shape: const CircleBorder(),
+          child: InkWell(
+            customBorder: const CircleBorder(),
+            onTap: onPressed,
             child: Icon(icon, color: Colors.white, size: size * 0.55),
           ),
         ),
