@@ -83,6 +83,54 @@ https://hangout-token-server.YOURNAME.workers.dev/rtc-token?channel=test123
 
 ---
 
+## 🖼️ PART 2B — Enable profile pictures (KV storage, no credit card)
+
+Profile pictures need somewhere to live. This uses **Workers KV**, which is
+free and — unlike R2 — does **not** require a credit card.
+
+> **Do I need this?** Only for profile pictures. Calls, chat and
+> notifications work fine without it. If you skip it, `/` reports
+> `"avatarStorage":"not configured"` and photo uploads show a friendly
+> "photo storage is not set up" message in the app.
+
+### Step 1 — Create the KV namespace
+1. In the Cloudflare dashboard sidebar, go to **Storage & Databases** →
+   **KV** (older UI: **Workers & Pages** → **KV**).
+2. Click **Create instance** / **Create namespace**.
+3. Name it `hangout-avatars` and click **Create**.
+
+### Step 2 — Bind it to the Worker ⚠️ (the step people miss)
+Creating the namespace is **not** enough — the Worker can't see it until you
+bind it.
+
+1. Go to **Compute (Workers)** → click **hangout-token-server**.
+2. Open the **Settings** tab → **Bindings** → **Add binding**.
+3. Choose **KV namespace**.
+4. **Variable name:** `AVATARS_KV` — must be exactly this, uppercase with
+   an underscore. This is the name the code looks for.
+5. **KV namespace:** select `hangout-avatars` from the dropdown.
+6. Click **Add binding** / **Deploy**.
+
+### Step 3 — Verify
+Open your worker URL in a browser:
+
+```
+https://hangout-token-server.YOURNAME.workers.dev/
+```
+
+| `avatarStorage` says | Meaning |
+|---|---|
+| `"kv"` | ✅ Working — profile pictures are ready |
+| `"not configured"` | Binding missing or misnamed — redo Step 2 |
+| `"r2"` | An R2 bucket is bound; it takes priority over KV (also fine) |
+
+> **Note:** if you deploy from the dashboard, `wrangler.toml` is ignored —
+> the dashboard is the source of truth for bindings. Only add the
+> `[[kv_namespaces]]` block to `wrangler.toml` if you deploy with the
+> `wrangler` CLI instead.
+
+---
+
 ## 📱 PART 3 — Point the app at your token server
 
 Edit `hangout_app/lib/config/app_config.dart`:
@@ -91,6 +139,13 @@ Edit `hangout_app/lib/config/app_config.dart`:
 static const String _agoraAppId = 'YOUR_APP_ID_HERE';
 
 static const String _tokenServerUrl =
+    'https://hangout-token-server.YOURNAME.workers.dev';
+
+// Same worker URL for push and profile pictures:
+static const String _pushServerUrl =
+    'https://hangout-token-server.YOURNAME.workers.dev';
+
+static const String _avatarServerUrl =
     'https://hangout-token-server.YOURNAME.workers.dev';
 ```
 
@@ -107,6 +162,16 @@ new APK → make a test call between two devices.
 | "Could not fetch call token" | Wrong `_tokenServerUrl` / no internet | Check URL: https, no trailing slash, no typos |
 | Agora error `101` | Wrong App ID | App ID in the app must match the certificate's project |
 | Call joins, no audio/video | Permissions denied | Enable mic + camera in Android settings |
+
+## 🔧 Troubleshooting profile pictures
+
+| Symptom | Cause | Fix |
+|---|---|---|
+| `"avatarStorage":"not configured"` | KV namespace not bound to the Worker | Do Part 2B Step 2 — creating the namespace alone is not enough |
+| "Photo storage is not set up" in the app | Same as above (the app is reporting the Worker's 501) | Do Part 2B Step 2 |
+| Binding added but still "not configured" | Variable name typo | It must be exactly `AVATARS_KV` (uppercase, underscore) |
+| Upload says "session expired" | Firebase ID token rejected | Sign out and back in; check `FIREBASE_PROJECT_ID` matches your project |
+| "Too many uploads" | Rate limit (6/min per user) | Wait a minute |
 
 ## ℹ️ Notes
 

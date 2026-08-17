@@ -13,6 +13,12 @@ One Worker, three jobs — all **free tier, no billing**:
    Storage is **Workers KV by default (no credit card)** and switches to
    **R2** automatically if you bind a bucket.
 
+> **Deploying from the Cloudflare dashboard instead of the CLI?** Then
+> `wrangler.toml` is ignored and you must add the KV binding in the
+> dashboard — see **PART 2B** in [`SETUP_GUIDE.md`](./SETUP_GUIDE.md).
+> A missing binding is what makes `/` report
+> `"avatarStorage":"not configured"`.
+
 ## Deploy (one time, ~5 minutes)
 
 1. Create a free Cloudflare account at https://dash.cloudflare.com/sign-up
