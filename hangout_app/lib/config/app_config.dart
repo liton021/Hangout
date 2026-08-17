@@ -162,7 +162,7 @@ class AppConfig {
 
   /// Installed app version. Must match the version tag of the *previous*
   /// release until you bump it for the next one.
-  static const String appVersion = '1.0.0';
+  static const String appVersion = '1.0.2';
 
   /// GitHub repository hosting the release APKs ('owner/name').
   static const String githubRepo = 'liton021/Hangout';
