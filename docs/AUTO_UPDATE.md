@@ -131,11 +131,30 @@ Notes:
 
 | Symptom | Cause / fix |
 |---|---|
-| No prompt appears after publishing | The release tag must be **newer** than `AppConfig.appVersion` (compare `v1.0.1` vs `1.0.0`). Also make sure the release has an **APK asset** (workflow ran green). |
+| No prompt appears after publishing | The release tag must be **newer** than `AppConfig.appVersion` **and** carry an **APK asset**. The app scans releases, keeps only strict `v1.2.3` tags, and skips releases without an APK — so a missing asset means silence. |
+| Release published, but the release has **no APK asset** | The tag was created **before `release.yml` existed** (or the workflow failed). The tag's git tree didn't contain the workflow, so nothing built. Fix: **delete the tag + release and re-tag `main`** (commands below), or simply bump to a new version and publish that tag. |
+| Auto-generated `v-<sha>` releases (from the build pipeline) | Harmless — the app ignores any tag that isn't strict semver (`v1.2.3`). `releases/latest` is never used for this reason. |
 | "Download failed" in the dialog | No internet, or GitHub API rate limit (rare). Retry later. |
 | Installer never opens | Android's "install unknown apps" permission — the app opens the system screen once; allow it and tap the APK again. |
-| Release has no APK asset | The `release.yml` workflow failed — check the Actions tab log. |
-| `v-e9b0264…` tags make noise | They don't match `v*.*.*`, so they're ignored. |
+
+### Re-publishing a release that missed its APK
+
+If a release exists but has no APK (e.g. the tag predated `release.yml`):
+
+```bash
+# 1. Delete the broken tag + release (GitHub Release too, via the UI or:)
+gh release delete v1.0.2 --yes
+git tag -d v1.0.2
+git push origin :refs/tags/v1.0.2
+
+# 2. Re-tag main HEAD (which now contains release.yml) and push
+git tag v1.0.2
+git push origin v1.0.2
+```
+
+The `release.yml` workflow now runs and attaches the APK. (Or skip all of
+this and just publish the *next* version tag — the app only needs *a* newer
+release with an APK.)
 
 ## Why not Cloudflare for this?
 

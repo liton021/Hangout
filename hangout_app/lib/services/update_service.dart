@@ -71,15 +71,23 @@ class UpdateService {
     return true;
   }
 
-  /// Queries `repos/<owner>/<repo>/releases/latest`. Returns null when there
-  /// are no releases, the release is not newer, or the check failed.
+  /// Fetches the latest releases and returns the best candidate update.
+  ///
+  /// GitHub's `releases/latest` endpoint is unreliable here: this repo gets
+  /// auto-generated releases with tags like `v-<commit-sha>` on every push
+  /// (from the build pipeline), so "latest" is usually one of those junk
+  /// releases. Instead we list the newest releases and pick the highest
+  /// *strict* semver tag (`v1.2.3`) that is newer than the installed version
+  /// AND carries an APK asset. Returns null when nothing qualifies or the
+  /// check fails.
   static Future<UpdateInfo?> fetchUpdateInfo() async {
     if (!AppConfig.useAutoUpdate) return null;
 
     final client = HttpClient()..connectionTimeout = const Duration(seconds: 10);
     try {
       final uri = Uri.parse(
-        'https://api.github.com/repos/${AppConfig.githubRepo}/releases/latest',
+        'https://api.github.com/repos/${AppConfig.githubRepo}/releases'
+        '?per_page=30',
       );
       final request = await client.getUrl(uri);
       request.headers.set(
@@ -90,42 +98,57 @@ class UpdateService {
       request.headers.set(HttpHeaders.userAgentHeader, 'Hangout-Android');
       final response = await request.close().timeout(const Duration(seconds: 15));
 
-      // 404 = no releases published yet.
+      // 404 = repo has no releases yet.
       if (response.statusCode == 404) return null;
       if (response.statusCode != 200) return null;
 
       final body = await response.transform(utf8.decoder).join();
-      final data = jsonDecode(body) as Map<String, dynamic>;
-
-      final releaseVersion = _AppVersion.parse(
-        (data['tag_name'] as String? ?? '').replaceFirst(RegExp(r'^[vV]'), ''),
-      );
-      if (!releaseVersion.isValid) return null;
+      final releases = jsonDecode(body);
+      if (releases is! List) return null;
 
       final current = _AppVersion.parse(AppConfig.appVersion);
-      if (!releaseVersion.isNewerThan(current)) return null;
+      UpdateInfo? best;
+      _AppVersion? bestVersion;
 
-      // Pick the APK asset: prefer the universal "Hangout-*.apk" / generic
-      // "app-release.apk", otherwise the first .apk in the release.
-      Map<String, dynamic>? asset;
-      for (final raw in (data['assets'] as List? ?? const [])) {
-        final a = raw is Map<String, dynamic> ? raw : null;
-        if (a == null) continue;
-        final name = (a['name'] as String? ?? '').toLowerCase();
-        if (!name.endsWith('.apk')) continue;
-        asset = a;
-        if (name.startsWith('hangout') || name.contains('app-release')) break;
+      for (final raw in releases) {
+        if (raw is! Map<String, dynamic>) continue;
+
+        // Skip drafts/prereleases and auto-generated v-<sha> tags (strict
+        // semver only, e.g. "v1.2.3").
+        if (raw['draft'] == true || raw['prerelease'] == true) continue;
+        final tag = (raw['tag_name'] as String? ?? '').trim();
+        final version = _AppVersion.parseStrict(tag);
+        if (version == null || !version.isNewerThan(current)) continue;
+
+        // The release must actually carry an APK.
+        Map<String, dynamic>? asset;
+        for (final a in (raw['assets'] as List? ?? const [])) {
+          final m = a is Map<String, dynamic> ? a : null;
+          if (m == null) continue;
+          final name = (m['name'] as String? ?? '').toLowerCase();
+          if (!name.endsWith('.apk')) continue;
+          // Prefer the named "Hangout-*.apk" release artifact over generic
+          // build outputs, but accept any APK as a fallback.
+          if (asset == null || name.startsWith('hangout')) asset = m;
+          if (name.startsWith('hangout')) break;
+        }
+        if (asset == null) continue;
+
+        final url = asset['browser_download_url'] as String?;
+        if (url == null || url.isEmpty) continue;
+
+        if (bestVersion == null || version.isNewerThan(bestVersion)) {
+          bestVersion = version;
+          best = UpdateInfo(
+            version: version.toString(),
+            notes: (raw['body'] as String?)?.trim() ?? '',
+            apkUrl: url,
+            apkName: asset['name'] as String? ?? 'Hangout-update.apk',
+            apkSize: (asset['size'] as num?)?.toInt() ?? 0,
+          );
+        }
       }
-      final url = asset?['browser_download_url'] as String?;
-      if (url == null || url.isEmpty) return null;
-
-      return UpdateInfo(
-        version: releaseVersion.toString(),
-        notes: (data['body'] as String?)?.trim() ?? '',
-        apkUrl: url,
-        apkName: asset!['name'] as String? ?? 'Hangout-update.apk',
-        apkSize: (asset['size'] as num?)?.toInt() ?? 0,
-      );
+      return best;
     } catch (_) {
       // Offline / rate-limited / malformed — never crash the app over an
       // update check.
@@ -370,6 +393,21 @@ class _AppVersion {
       parts.add(n);
     }
     return _AppVersion(parts);
+  }
+
+  /// Strict release-tag parser: only `v1.2.3` / `1.2.3` (optionally with a
+  /// `-suffix` or `+build`) qualify. Rejects junk tags like `v-<sha>`, which
+  /// the auto-release pipeline creates for every push.
+  static _AppVersion? parseStrict(String tag) {
+    final match = RegExp(
+      r'^[vV]?(\d+)\.(\d+)\.(\d+)(?:[-+].*)?$',
+    ).firstMatch(tag.trim());
+    if (match == null) return null;
+    return _AppVersion([
+      int.parse(match.group(1)!),
+      int.parse(match.group(2)!),
+      int.parse(match.group(3)!),
+    ]);
   }
 
   bool isNewerThan(_AppVersion other) {
