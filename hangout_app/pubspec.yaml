@@ -38,6 +38,16 @@ dependencies:
   # after 6.6.3), uses ffi 2.x, and keeps the same 6.x API.
   agora_rtc_engine: ^6.5.4
 
+  # Profile pictures: pick from gallery/camera, then crop + compress in-app
+  # before uploading to the Cloudflare Worker (see services/avatar_service.dart).
+  # 1.1.2 is the newest image_picker that still builds on the CI's Flutter
+  # 3.24.0 / Dart 3.5 (1.2.x requires Dart 3.6+). Bump only together with the
+  # Flutter version in .github/workflows/build.yml.
+  image_picker: ^1.1.2
+  # 4.5.x is the last line supporting Dart 3.0+; used for the square crop
+  # and JPEG re-encode so uploads stay ~60 KB.
+  image: ^4.5.4
+
   # Utilities
   permission_handler: ^11.3.1
   intl: ^0.19.0

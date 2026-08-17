@@ -5,9 +5,10 @@ import '../models/app_user.dart';
 
 /// Reads/writes user profiles in Firestore (`users/{uid}`).
 class UserService {
-  UserService(this._db);
+  UserService(this._db, this._auth);
 
   final FirebaseFirestore _db;
+  final FirebaseAuth _auth;
 
   CollectionReference<Map<String, dynamic>> get _users =>
       _db.collection('users');
@@ -26,6 +27,18 @@ class UserService {
     };
     data.removeWhere((_, v) => v == null);
     await ref.set(data, SetOptions(merge: true));
+  }
+
+  /// Sets (or clears, when [url] is null) the signed-in user's profile
+  /// picture. The image itself lives on the Cloudflare Worker — Firestore
+  /// only stores the URL.
+  Future<void> setAvatarUrl(String? url) async {
+    final uid = _auth.currentUser?.uid;
+    if (uid == null) return;
+    await _users.doc(uid).set(
+      {'avatarUrl': url ?? FieldValue.delete()},
+      SetOptions(merge: true),
+    );
   }
 
   Future<AppUser?> getById(String uid) async {

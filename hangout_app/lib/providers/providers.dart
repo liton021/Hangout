@@ -9,6 +9,7 @@ import '../models/channel.dart';
 import '../models/chat_message.dart';
 import '../models/chat_summary.dart';
 import '../services/auth_service.dart';
+import '../services/avatar_service.dart';
 import '../services/chat_service.dart';
 import '../services/push_service.dart';
 import '../services/user_service.dart';
@@ -67,13 +68,30 @@ final authServiceProvider = Provider<AuthService>((ref) {
 });
 
 final userServiceProvider = Provider<UserService>((ref) {
-  return UserService(ref.watch(firestoreProvider));
+  return UserService(
+    ref.watch(firestoreProvider),
+    ref.watch(firebaseAuthProvider),
+  );
 });
 
 final chatServiceProvider = Provider<ChatService>((ref) {
   return ChatService(
     ref.watch(firestoreProvider),
     ref.watch(pushServiceProvider),
+  );
+});
+
+/// Profile-picture uploads — same Cloudflare Worker as push/tokens.
+final avatarServiceProvider = Provider<AvatarService>((ref) {
+  return AvatarService(
+    idTokenProvider: () async {
+      final user = ref.read(authServiceProvider).currentUser;
+      try {
+        return await user?.getIdToken();
+      } catch (_) {
+        return null;
+      }
+    },
   );
 });
 

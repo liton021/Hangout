@@ -75,6 +75,26 @@ class AppConfig {
   /// True when a push/signaling server is configured.
   static bool get usePushServer => pushServerUrl.isNotEmpty;
 
+  // ────────────────────────────────────────────────────────────────────
+  //  ▼▼▼  AVATAR / PROFILE PICTURE HOSTING  ▼▼▼
+  //  Same Cloudflare Worker again: it exposes POST/DELETE /avatar and
+  //  serves the images back publicly from /avatar/<uid>/<hash>.<ext>.
+  //  Storage is Workers KV by default (no credit card) and switches to
+  //  R2 automatically if you bind a bucket. See token_server/README.md.
+  // ────────────────────────────────────────────────────────────────────
+  static const String _avatarServerUrl =
+      'https://hangout-token-server.onelitonbd.workers.dev';
+
+  /// Effective avatar server URL. `--dart-define=AVATAR_SERVER_URL=...`
+  /// overrides the hard-coded value above.
+  static const String avatarServerUrl = String.fromEnvironment(
+    'AVATAR_SERVER_URL',
+    defaultValue: _avatarServerUrl,
+  );
+
+  /// True when profile-picture uploads are available.
+  static bool get useAvatarServer => avatarServerUrl.isNotEmpty;
+
   /// True when a token server is configured (secured mode).
   static bool get useTokenServer => tokenServerUrl.isNotEmpty;
 

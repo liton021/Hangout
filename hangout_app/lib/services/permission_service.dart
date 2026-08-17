@@ -49,6 +49,46 @@ class PermissionService {
     }
   }
 
+  /// Requests the camera for taking a profile picture.
+  ///
+  /// Needed because the manifest declares CAMERA: when that permission is
+  /// present, `image_picker` requires it to be granted before it will open
+  /// the capture screen. Picking from the gallery needs no permission (it
+  /// goes through the system photo picker).
+  ///
+  /// Returns true only when the camera may be opened.
+  static Future<bool> ensureCamera(BuildContext context) async {
+    try {
+      if (await Permission.camera.status.then((s) => s.isGranted)) return true;
+    } catch (_) {
+      return false;
+    }
+
+    PermissionStatus status;
+    try {
+      status = await Permission.camera.request();
+    } catch (_) {
+      return false;
+    }
+    if (status.isGranted) return true;
+    if (!context.mounted) return false;
+
+    final messenger = ScaffoldMessenger.of(context);
+    messenger.hideCurrentSnackBar();
+    messenger.showSnackBar(SnackBar(
+      content: Text(
+        status.isPermanentlyDenied
+            ? 'Camera access is blocked. Enable it in Settings to take a photo.'
+            : 'Camera access is needed to take a photo.',
+      ),
+      duration: const Duration(seconds: 4),
+      action: status.isPermanentlyDenied
+          ? SnackBarAction(label: 'Settings', onPressed: openAppSettings)
+          : null,
+    ));
+    return false;
+  }
+
   /// Requests the permissions and, when the user denies, shows a snackbar
   /// explaining how to re-enable them (with a shortcut to the settings).
   ///

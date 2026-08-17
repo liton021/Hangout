@@ -7,6 +7,7 @@ import '../../theme/app_theme.dart';
 import '../../widgets/app_header.dart';
 import '../../widgets/avatar.dart';
 import '../home/calls_screen.dart';
+import 'avatar_picker.dart';
 
 /// Settings tab — profile card on top, then grouped preference rows.
 class SettingsScreen extends ConsumerWidget {
@@ -45,7 +46,7 @@ class SettingsScreen extends ConsumerWidget {
           child: ListView(
             padding: const EdgeInsets.fromLTRB(16, 4, 16, 28),
             children: [
-              _ProfileCard(user: user),
+              _ProfileCard(user: user, parentRef: ref),
               const SizedBox(height: 22),
               GroupCard(
                 dividerIndent: 74,
@@ -271,10 +272,14 @@ class SettingsScreen extends ConsumerWidget {
 }
 
 /// Big rounded profile card: ringed avatar, name, contact line, online chip.
+///
+/// Tapping the avatar opens the change-photo flow (camera / gallery /
+/// remove) — see [AvatarPicker].
 class _ProfileCard extends StatelessWidget {
-  const _ProfileCard({required this.user});
+  const _ProfileCard({required this.user, required this.parentRef});
 
   final AppUser user;
+  final WidgetRef parentRef;
 
   @override
   Widget build(BuildContext context) {
@@ -288,13 +293,7 @@ class _ProfileCard extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: 26, horizontal: 20),
       child: Column(
         children: [
-          UserAvatar(
-            user: user,
-            radius: 56,
-            showPresence: true,
-            ringColor: AppColors.accent,
-            presenceBorderColor: palette.surface,
-          ),
+          _EditableAvatar(user: user, parentRef: parentRef),
           const SizedBox(height: 18),
           Text(
             user.name,
@@ -349,6 +348,72 @@ class _ProfileCard extends StatelessWidget {
                   ),
                 ),
               ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// The profile photo with a camera badge — the entry point for changing it.
+///
+/// The whole circle is the tap target (plus a semantics label), so the badge
+/// is a visual affordance rather than a small hit area.
+class _EditableAvatar extends StatelessWidget {
+  const _EditableAvatar({required this.user, required this.parentRef});
+
+  final AppUser user;
+  final WidgetRef parentRef;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = context.colors;
+    final hasPhoto = (user.avatarUrl ?? '').isNotEmpty;
+
+    return Semantics(
+      button: true,
+      label: hasPhoto ? 'Change profile picture' : 'Add a profile picture',
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          // The card behind this is a plain decorated Container, so without
+          // its own transparent Material the ink ripple would be painted
+          // underneath the card's surface colour and never be seen.
+          // Not clipped: the green presence dot deliberately sits on the
+          // ring's edge, and a circular clip would shave it off.
+          Material(
+            type: MaterialType.transparency,
+            child: InkWell(
+              onTap: () =>
+                  AvatarPicker.show(context, parentRef, hasPhoto: hasPhoto),
+              customBorder: const CircleBorder(),
+              child: UserAvatar(
+                user: user,
+                radius: 56,
+                showPresence: true,
+                ringColor: AppColors.accent,
+                presenceBorderColor: palette.surface,
+              ),
+            ),
+          ),
+          Positioned(
+            right: -2,
+            top: 2,
+            child: IgnorePointer(
+              child: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: AppColors.accent,
+                  shape: BoxShape.circle,
+                  border: Border.all(color: palette.surface, width: 3),
+                ),
+                child: const Icon(
+                  Icons.photo_camera_rounded,
+                  size: 17,
+                  color: Colors.white,
+                ),
+              ),
             ),
           ),
         ],

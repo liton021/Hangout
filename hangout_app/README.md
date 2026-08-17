@@ -93,7 +93,33 @@ That's it — messages and calls now reach the app while it's in the background
 (via a foreground service that keeps the WebSocket alive, plus full-screen
 intent notifications for incoming calls).
 
-## 4. Run
+## 4. Configure profile pictures (optional)
+
+Avatars are stored on the **same Cloudflare Worker**. The Worker keeps them in
+**Workers KV**, which is free and — unlike R2 — needs **no credit card**:
+
+```bash
+cd ../token_server
+npx wrangler kv namespace create AVATARS_KV
+# paste the printed id into the [[kv_namespaces]] block in wrangler.toml
+npx wrangler deploy
+```
+
+Then make sure `_avatarServerUrl` in `lib/config/app_config.dart` points at
+your Worker (it defaults to the same URL as push/tokens), or override with
+`--dart-define=AVATAR_SERVER_URL=...`.
+
+Users change their photo by tapping their avatar on the **Settings** tab:
+camera or gallery → pinch/drag to frame it → upload. The app crops to a
+512×512 JPEG (~40–80 KB) before uploading, so a 1 GB KV namespace holds
+roughly 15,000 avatars.
+
+Skipping this step is safe — calls and chat work exactly as before, and the
+app shows a clear "photo storage is not set up" message if someone tries to
+upload. To move to R2 (10 GB, but Cloudflare requires a card) later, just bind
+a bucket; see `../token_server/README.md`. **No app change needed.**
+
+## 5. Run
 
 ```bash
 flutter pub get
@@ -142,11 +168,13 @@ lib/
 │   ├── chat_service.dart      # Firestore messaging + message push hook
 │   ├── push_service.dart      # FCM-free push (WebSocket + local notifications)
 │   ├── background_connection.dart  # foreground service keeping the socket alive
-│   └── call_service.dart      # Agora engine wrapper (noise NS/AEC/AGC, beauty, blur)
+│   ├── call_service.dart      # Agora engine wrapper (noise NS/AEC/AGC, beauty, blur)
+│   └── avatar_service.dart    # profile pictures: crop/compress + upload to the Worker
 ├── providers/                 # Riverpod providers + call controller
 ├── screens/
 │   ├── auth/                  # login, register
 │   ├── home/                  # chats + contacts tabs
+│   ├── settings/              # settings, profile photo picker + cropper
 │   ├── chat/                  # chat screen
 │   └── call/                  # video / audio / incoming call
 └── widgets/                   # avatar, call buttons
@@ -191,7 +219,8 @@ allow background activity for Hangout. See `../docs/PUSH_NOTIFICATIONS.md`.
 ## Known limitations / roadmap
 
 - **Group chats / image & file messages / read receipts / typing** — not yet
-  implemented (1-on-1 text only).
+  implemented (1-on-1 text only). Profile *pictures* are supported (see
+  step 4); sending images inside a chat is not.
 - **Call ringing while the app is force-stopped** — works while the
   foreground service runs; if the user force-stops the app or an aggressive
   OEM battery manager kills the service, delivery resumes on next open.

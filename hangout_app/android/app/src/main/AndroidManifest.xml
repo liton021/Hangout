@@ -79,5 +79,16 @@
             <action android:name="android.intent.action.PROCESS_TEXT" />
             <data android:mimeType="text/plain" />
         </intent>
+        <!-- image_picker (profile pictures): lets the app resolve the
+             camera / photo-picker activities on Android 11+ (package
+             visibility). Picking from the gallery uses the system photo
+             picker, which needs no storage permission. -->
+        <intent>
+            <action android:name="android.media.action.IMAGE_CAPTURE" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.GET_CONTENT" />
+            <data android:mimeType="image/*" />
+        </intent>
     </queries>
 </manifest>

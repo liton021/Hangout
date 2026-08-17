@@ -18,6 +18,20 @@
  *                             "call_cancelled" | "call_rejected" | "new_message",
  *                             "payload": { ... } }
  *
+ * Part 3 — Profile pictures (avatar hosting):
+ *   POST   /avatar          raw image bytes, Content-Type: image/jpeg|png|webp
+ *                           → { url } ; the app stores that URL on the user's
+ *                             Firestore document (`users/{uid}.avatarUrl`).
+ *   GET    /avatar/<uid>/<hash>.<ext>   public, immutable, cached forever.
+ *   DELETE /avatar          removes the caller's picture.
+ *
+ *   Storage is pluggable and picked automatically at runtime:
+ *     • R2 bucket bound as AVATARS_R2  → used when present (10 GB free,
+ *       but Cloudflare asks for a card on file to enable R2).
+ *     • Workers KV bound as AVATARS_KV → the card-free fallback (1 GB,
+ *       1,000 writes/day — thousands of avatars at ~60 KB each).
+ *   Bind R2 later and uploads move over with no app change.
+ *
  * Auth: both endpoints require an `Authorization: Bearer <firebase-id-token>`
  * header. Tokens are verified against Google's public signing certs (RS256,
  * cached ~6h) — this needs NO Firebase service account, NO Cloud Messaging
@@ -34,6 +48,11 @@
  * Vars (wrangler.toml `[vars]`, not secret):
  *   FIREBASE_PROJECT_ID    your Firebase project id (used only for verifying
  *                          the app's auth tokens — no Cloud APIs involved).
+ *
+ * Bindings (wrangler.toml):
+ *   PUSH_ROOM     Durable Object namespace (push mailboxes)
+ *   AVATARS_KV    KV namespace for profile pictures (card-free default)
+ *   AVATARS_R2    optional R2 bucket; takes priority over KV when bound
  */
 
 import { DurableObject } from 'cloudflare:workers';
@@ -346,12 +365,133 @@ export class PushRoom extends DurableObject {
 }
 
 /* ------------------------------------------------------------------ */
+/* Avatar storage — R2 when bound, otherwise Workers KV               */
+/* ------------------------------------------------------------------ */
+
+const AVATAR_MAX_BYTES = 512 * 1024; // 512 KB — the app resizes to ~60 KB
+const AVATAR_TYPES = {
+  'image/jpeg': 'jpg',
+  'image/jpg': 'jpg',
+  'image/png': 'png',
+  'image/webp': 'webp',
+};
+const EXT_TO_TYPE = {
+  jpg: 'image/jpeg',
+  png: 'image/png',
+  webp: 'image/webp',
+};
+
+/** Cache-Control for immutable, content-addressed avatar objects. */
+const AVATAR_CACHE_CONTROL = 'public, max-age=31536000, immutable';
+
+/**
+ * Picks the storage backend. R2 wins when its binding exists so you can add
+ * a bucket later without touching the app; KV is the no-credit-card default.
+ */
+function avatarStore(env) {
+  if (env.AVATARS_R2) return { kind: 'r2', bucket: env.AVATARS_R2 };
+  if (env.AVATARS_KV) return { kind: 'kv', kv: env.AVATARS_KV };
+  return null;
+}
+
+/** Short content hash — makes each upload a unique, cacheable URL. */
+async function shortHash(bytes) {
+  const digest = await crypto.subtle.digest('SHA-256', bytes);
+  const view = new Uint8Array(digest).subarray(0, 8);
+  return Array.from(view, (b) => b.toString(16).padStart(2, '0')).join('');
+}
+
+/** `avatars/<uid>/<hash>.<ext>` — the object key in R2/KV. */
+function avatarKey(uid, hash, ext) {
+  return `avatars/${uid}/${hash}.${ext}`;
+}
+
+async function putAvatar(store, key, bytes, contentType) {
+  if (store.kind === 'r2') {
+    await store.bucket.put(key, bytes, {
+      httpMetadata: { contentType, cacheControl: AVATAR_CACHE_CONTROL },
+    });
+    return;
+  }
+  // KV values are capped at 25 MB; our 512 KB limit is well inside that.
+  await store.kv.put(key, bytes, { metadata: { contentType } });
+}
+
+async function getAvatar(store, key) {
+  if (store.kind === 'r2') {
+    const object = await store.bucket.get(key);
+    if (!object) return null;
+    return {
+      body: object.body,
+      contentType: object.httpMetadata?.contentType || 'application/octet-stream',
+      etag: object.httpEtag,
+    };
+  }
+  const { value, metadata } = await store.kv.getWithMetadata(key, {
+    type: 'arrayBuffer',
+  });
+  if (!value) return null;
+  return {
+    body: value,
+    contentType: metadata?.contentType || 'application/octet-stream',
+    etag: null,
+  };
+}
+
+/** Deletes every object stored under `avatars/<uid>/`. */
+async function deleteAvatars(store, uid) {
+  const prefix = `avatars/${uid}/`;
+  if (store.kind === 'r2') {
+    let cursor;
+    do {
+      const listing = await store.bucket.list({ prefix, cursor });
+      if (listing.objects.length > 0) {
+        await store.bucket.delete(listing.objects.map((o) => o.key));
+      }
+      cursor = listing.truncated ? listing.cursor : undefined;
+    } while (cursor);
+    return;
+  }
+  let cursor;
+  do {
+    const listing = await store.kv.list({ prefix, cursor });
+    await Promise.all(listing.keys.map((k) => store.kv.delete(k.name)));
+    cursor = listing.list_complete ? undefined : listing.cursor;
+  } while (cursor);
+}
+
+/**
+ * Sniffs the real image type from magic bytes so a caller cannot mislabel a
+ * non-image (or an SVG carrying script) as `image/png`.
+ */
+function sniffImageType(bytes) {
+  if (bytes.length >= 3 && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff) {
+    return 'image/jpeg';
+  }
+  if (
+    bytes.length >= 8 &&
+    bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4e && bytes[3] === 0x47 &&
+    bytes[4] === 0x0d && bytes[5] === 0x0a && bytes[6] === 0x1a && bytes[7] === 0x0a
+  ) {
+    return 'image/png';
+  }
+  if (
+    bytes.length >= 12 &&
+    bytes[0] === 0x52 && bytes[1] === 0x49 && bytes[2] === 0x46 && bytes[3] === 0x46 &&
+    bytes[8] === 0x57 && bytes[9] === 0x45 && bytes[10] === 0x42 && bytes[11] === 0x50
+  ) {
+    return 'image/webp';
+  }
+  return null;
+}
+
+/* ------------------------------------------------------------------ */
 /* HTTP handler                                                        */
 /* ------------------------------------------------------------------ */
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+  'Access-Control-Allow-Methods': 'GET, POST, DELETE, OPTIONS',
   'Access-Control-Allow-Headers': 'Content-Type, Authorization',
 };
 
@@ -371,16 +511,21 @@ const sendCounts = new Map();
 const SEND_RATE_LIMIT = 120; // sends per minute per user
 const SEND_WINDOW_MS = 60 * 1000;
 
-function rateLimited(uid) {
+function rateLimited(uid, { bucket = 'send', limit = SEND_RATE_LIMIT } = {}) {
   const now = Date.now();
-  const entry = sendCounts.get(uid);
+  const mapKey = `${bucket}:${uid}`;
+  const entry = sendCounts.get(mapKey);
   if (!entry || now - entry.start > SEND_WINDOW_MS) {
-    sendCounts.set(uid, { start: now, count: 1 });
+    sendCounts.set(mapKey, { start: now, count: 1 });
     return false;
   }
   entry.count += 1;
-  return entry.count > SEND_RATE_LIMIT;
+  return entry.count > limit;
 }
+
+// Avatar uploads get their own, much smaller budget: the KV free tier only
+// allows 1,000 writes/day, and each upload costs a delete + a put.
+const AVATAR_RATE_LIMIT = 6; // uploads per minute per user
 
 export default {
   async fetch(request, env) {
@@ -462,6 +607,128 @@ export default {
       return json({ ok: true, ...result });
     }
 
+    /* ---------------- /avatar (profile pictures) ---------------- */
+
+    // Public read: GET /avatar/<uid>/<hash>.<ext>
+    // No auth — this URL goes into <img>/Image.network on every device.
+    if (url.pathname.startsWith('/avatar/')) {
+      if (request.method !== 'GET' && request.method !== 'HEAD') {
+        return json({ error: 'Use GET /avatar/<uid>/<hash>.<ext>' }, 405);
+      }
+      const store = avatarStore(env);
+      if (!store) return json({ error: 'Avatar storage is not configured.' }, 501);
+
+      const match = url.pathname.match(
+        /^\/avatar\/([A-Za-z0-9_-]{1,128})\/([a-f0-9]{16})\.(jpg|png|webp)$/,
+      );
+      if (!match) return json({ error: 'Not found.' }, 404);
+
+      const [, uid, hash, ext] = match;
+      const object = await getAvatar(store, avatarKey(uid, hash, ext));
+      if (!object) return json({ error: 'Not found.' }, 404);
+
+      // Content-addressed: the bytes for a URL never change, so a matching
+      // ETag can always be answered with a 304.
+      const etag = object.etag || `"${hash}"`;
+      if (request.headers.get('If-None-Match') === etag) {
+        return new Response(null, {
+          status: 304,
+          headers: { ETag: etag, 'Cache-Control': AVATAR_CACHE_CONTROL },
+        });
+      }
+
+      return new Response(request.method === 'HEAD' ? null : object.body, {
+        headers: {
+          'Content-Type': object.contentType || EXT_TO_TYPE[ext],
+          'Cache-Control': AVATAR_CACHE_CONTROL,
+          ETag: etag,
+          'X-Content-Type-Options': 'nosniff',
+          'Access-Control-Allow-Origin': '*',
+        },
+      });
+    }
+
+    // Upload / delete the caller's own picture.
+    if (url.pathname === '/avatar') {
+      const store = avatarStore(env);
+      if (!store) {
+        return json(
+          {
+            error:
+              'Avatar storage is not configured: bind AVATARS_KV (or AVATARS_R2) in wrangler.toml.',
+          },
+          501,
+        );
+      }
+
+      let claims;
+      try {
+        claims = await verifyFirebaseIdToken(bearer(request), env.FIREBASE_PROJECT_ID);
+      } catch (e) {
+        return json({ error: `Unauthorized: ${e.message}` }, 401);
+      }
+      const uid = claims.sub;
+
+      if (request.method === 'DELETE') {
+        await deleteAvatars(store, uid);
+        return json({ ok: true, url: null });
+      }
+
+      if (request.method !== 'POST') {
+        return json({ error: 'Use POST or DELETE /avatar' }, 405);
+      }
+      if (rateLimited(uid, { bucket: 'avatar', limit: AVATAR_RATE_LIMIT })) {
+        return json({ error: 'Too many uploads — please wait a minute.' }, 429);
+      }
+
+      // Reject oversized uploads before reading the body when we can.
+      const declared = parseInt(request.headers.get('Content-Length') || '0', 10);
+      if (declared > AVATAR_MAX_BYTES) {
+        return json({ error: `Image too large (max ${AVATAR_MAX_BYTES / 1024} KB).` }, 413);
+      }
+
+      const declaredType = (request.headers.get('Content-Type') || '')
+        .split(';')[0]
+        .trim()
+        .toLowerCase();
+      if (!AVATAR_TYPES[declaredType]) {
+        return json(
+          { error: 'Unsupported Content-Type. Use image/jpeg, image/png or image/webp.' },
+          415,
+        );
+      }
+
+      const bytes = new Uint8Array(await request.arrayBuffer());
+      if (bytes.length === 0) return json({ error: 'Empty body.' }, 400);
+      if (bytes.length > AVATAR_MAX_BYTES) {
+        return json({ error: `Image too large (max ${AVATAR_MAX_BYTES / 1024} KB).` }, 413);
+      }
+
+      // Trust the bytes, not the header.
+      const actualType = sniffImageType(bytes);
+      if (!actualType) return json({ error: 'Body is not a JPEG, PNG or WebP image.' }, 415);
+
+      const ext = AVATAR_TYPES[actualType];
+      const hash = await shortHash(bytes);
+      const key = avatarKey(uid, hash, ext);
+
+      // One picture per user: drop the previous object(s) first so storage
+      // stays flat (important on the 1 GB KV free tier).
+      await deleteAvatars(store, uid);
+      await putAvatar(store, key, bytes, actualType);
+
+      // Storage keys are `avatars/<uid>/…`; the public route is `/avatar/<uid>/…`.
+      const publicUrl = `${url.origin}/avatar/${uid}/${hash}.${ext}`;
+      return json({
+        ok: true,
+        url: publicUrl,
+        key,
+        size: bytes.length,
+        contentType: actualType,
+        storage: store.kind,
+      });
+    }
+
     /* ---------------- /ws (device mailbox connection) ---------------- */
     if (url.pathname === '/ws') {
       const uid = (url.searchParams.get('uid') || '').trim();
@@ -480,7 +747,11 @@ export default {
           'GET /rtc-token?channel=...&uid=...&expire=... (Agora tokens)',
           'GET /ws?uid=<uid> (WebSocket mailbox, Authorization: Bearer <id-token>)',
           'POST /send { to, event, payload } (push event, Authorization: Bearer <id-token>)',
+          'POST /avatar (raw image bytes, Authorization: Bearer <id-token>) → { url }',
+          'DELETE /avatar (remove your picture, Authorization: Bearer <id-token>)',
+          'GET /avatar/<uid>/<hash>.<ext> (public profile picture)',
         ],
+        avatarStorage: avatarStore(env)?.kind ?? 'not configured',
       });
     }
 
