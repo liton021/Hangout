@@ -119,8 +119,16 @@ class _VoiceNotePlayerState extends State<VoiceNotePlayer> {
   @override
   Widget build(BuildContext context) {
     final palette = context.colors;
-    final onBlue = widget.mine;
-    final dim = onBlue ? Colors.white70 : palette.textSecondary;
+    // On the Telegram-blue (dark) or Telegram-green (light) outgoing bubble
+    // the player is tinted; elsewhere it's the neutral surface.
+    final onBubble = widget.mine;
+    final onDarkBubble = onBubble && context.isDark;
+    final onLightBubble = onBubble && !context.isDark;
+    final dim = onDarkBubble
+        ? Colors.white70
+        : onLightBubble
+            ? const Color(0xFF5A5A5A)
+            : palette.textSecondary;
 
     // Prefer the real decoded duration; fall back to the recorded length so
     // the bubble is correctly sized before playback starts.
@@ -174,9 +182,16 @@ class _VoiceNotePlayerState extends State<VoiceNotePlayer> {
                             // Seeded by the URL so a given note always draws
                             // the same bars instead of reshuffling on rebuild.
                             seed: widget.url.hashCode,
-                            playedColor: onBlue ? Colors.white : AppColors.accent,
-                            unplayedColor:
-                                onBlue ? Colors.white38 : palette.textSecondary.withOpacity(.35),
+                            playedColor: onDarkBubble
+                                ? Colors.white
+                                : onLightBubble
+                                    ? AppColors.accent
+                                    : AppColors.accent,
+                            unplayedColor: onDarkBubble
+                                ? Colors.white38
+                                : onLightBubble
+                                    ? palette.textSecondary.withOpacity(.35)
+                                    : palette.textSecondary.withOpacity(.35),
                           ),
                         ),
                       ),
@@ -184,14 +199,20 @@ class _VoiceNotePlayerState extends State<VoiceNotePlayer> {
                   },
                 ),
                 const SizedBox(height: 2),
-                Text(
-                  label,
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w500,
-                    color: _failed ? (onBlue ? Colors.white : palette.textSecondary) : dim,
+                  Text(
+                    label,
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w500,
+                      color: _failed
+                          ? (onDarkBubble
+                              ? Colors.white
+                              : onLightBubble
+                                  ? const Color(0xFF5A5A5A)
+                                  : palette.textSecondary)
+                          : dim,
+                    ),
                   ),
-                ),
               ],
             ),
           ),
@@ -221,8 +242,16 @@ class _PlayButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = context.colors;
-    final bg = onBlue ? Colors.white24 : palette.surfaceMuted;
-    final fg = onBlue ? Colors.white : AppColors.accent;
+    // On the Telegram-blue (dark) bubble the play button is frosted white;
+    // on the Telegram-green (light) bubble it's a light gray with the blue
+    // icon; elsewhere it's the neutral surface.
+    final onDark = onBlue && context.isDark;
+    final bg = onDark
+        ? Colors.white24
+        : onBlue
+            ? const Color(0xFFE8E8E8)
+            : palette.surfaceMuted;
+    final fg = onDark ? Colors.white : AppColors.accent;
 
     return Material(
       color: bg,

@@ -99,13 +99,12 @@ class _NavItem extends StatelessWidget {
           margin: const EdgeInsets.symmetric(horizontal: 4),
           padding: const EdgeInsets.symmetric(vertical: 9),
           decoration: BoxDecoration(
-            gradient: selected ? AppColors.vividGradient : null,
-            color: selected ? null : Colors.transparent,
+            color: selected ? AppColors.accent : Colors.transparent,
             borderRadius: BorderRadius.circular(AppRadius.lg),
             boxShadow: selected
                 ? const [
                     BoxShadow(
-                      color: Color(0x4D6D5CE8),
+                      color: Color(0x4D3390EC),
                       blurRadius: 14,
                       offset: Offset(0, 5),
                     ),

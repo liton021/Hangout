@@ -293,11 +293,11 @@ class UnreadBadge extends StatelessWidget {
       constraints: const BoxConstraints(minWidth: 22, minHeight: 22),
       padding: const EdgeInsets.symmetric(horizontal: 6),
       decoration: BoxDecoration(
-        gradient: AppColors.vividGradient,
+        color: AppColors.accent,
         borderRadius: BorderRadius.circular(AppRadius.pill),
         boxShadow: const [
           BoxShadow(
-            color: Color(0x4D6D5CE8),
+            color: Color(0x4D3390EC),
             blurRadius: 8,
             offset: Offset(0, 3),
           ),

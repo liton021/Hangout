@@ -17,6 +17,7 @@ import '../../models/chat_message.dart';
 import '../../providers/providers.dart';
 import '../../services/image_message_service.dart';
 import '../../services/voice_note_service.dart';
+import '../../widgets/chat_backdrop.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/contact_actions.dart';
 import '../../widgets/avatar.dart';
@@ -410,71 +411,84 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       body: Column(
         children: [
           Expanded(
-            // A whisper of color behind the conversation instead of a flat
-            // slab — dark gets a cool lift, light gets warm white.
+            // Telegram's chat backdrop: flat surface color + the faint
+            // repeating paper-tear pattern behind the messages.
             child: Container(
               decoration:
                   BoxDecoration(gradient: palette.chatBackground),
-              child: messages.when(
-                loading: () => const LoadingState(),
-                error: (_, __) => const EmptyState(
-                  icon: Icons.cloud_off_rounded,
-                  title: 'Messages unavailable',
-                  subtitle: 'Check your connection and try again.',
-                ),
-                data: (list) {
-                if (list.isEmpty) {
-                  return EmptyState(
-                    icon: Icons.waving_hand_rounded,
-                    title: 'Say hello to ${widget.peer.name.split(' ').first}',
-                    subtitle: 'This is the beginning of your conversation.',
-                  );
-                }
-                if (list.length > _previousMessageCount) {
-                  _previousMessageCount = list.length;
-                  _scrollToBottom();
-                  WidgetsBinding.instance
-                      .addPostFrameCallback((_) => _markRead());
-                }
-                return ListView.builder(
-                  controller: _scroll,
-                  keyboardDismissBehavior:
-                      ScrollViewKeyboardDismissBehavior.onDrag,
-                  padding: const EdgeInsets.fromLTRB(14, 14, 14, 10),
-                  itemCount: list.length,
-                  itemBuilder: (context, i) {
-                    final message = list[i];
-                    final previous = i > 0 ? list[i - 1] : null;
-                    final next = i < list.length - 1 ? list[i + 1] : null;
-                    final mine = message.authorId == me?.uid;
-                    final startsDay = previous == null ||
-                        !_sameDay(previous.sentAt, message.sentAt);
-                    final startsGroup = previous == null ||
-                        previous.authorId != message.authorId ||
-                        message.sentAt.difference(previous.sentAt).inMinutes > 3;
-                    final endsGroup = next == null ||
-                        next.authorId != message.authorId ||
-                        next.sentAt.difference(message.sentAt).inMinutes > 3;
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  const ChatBackdrop(),
+                  messages.when(
+                    loading: () => const LoadingState(),
+                    error: (_, __) => const EmptyState(
+                      icon: Icons.cloud_off_rounded,
+                      title: 'Messages unavailable',
+                      subtitle: 'Check your connection and try again.',
+                    ),
+                    data: (list) {
+                      if (list.isEmpty) {
+                        return EmptyState(
+                          icon: Icons.waving_hand_rounded,
+                          title:
+                              'Say hello to ${widget.peer.name.split(' ').first}',
+                          subtitle:
+                              'This is the beginning of your conversation.',
+                        );
+                      }
+                      if (list.length > _previousMessageCount) {
+                        _previousMessageCount = list.length;
+                        _scrollToBottom();
+                        WidgetsBinding.instance
+                            .addPostFrameCallback((_) => _markRead());
+                      }
+                      return ListView.builder(
+                        controller: _scroll,
+                        keyboardDismissBehavior:
+                            ScrollViewKeyboardDismissBehavior.onDrag,
+                        padding: const EdgeInsets.fromLTRB(14, 14, 14, 10),
+                        itemCount: list.length,
+                        itemBuilder: (context, i) {
+                          final message = list[i];
+                          final previous = i > 0 ? list[i - 1] : null;
+                          final next =
+                              i < list.length - 1 ? list[i + 1] : null;
+                          final mine = message.authorId == me?.uid;
+                          final startsDay = previous == null ||
+                              !_sameDay(previous.sentAt, message.sentAt);
+                          final startsGroup = previous == null ||
+                              previous.authorId != message.authorId ||
+                              message.sentAt
+                                      .difference(previous.sentAt)
+                                      .inMinutes >
+                                  3;
+                          final endsGroup = next == null ||
+                              next.authorId != message.authorId ||
+                              next.sentAt.difference(message.sentAt).inMinutes >
+                                  3;
 
-                    return Column(
-                      children: [
-                        if (startsDay) _DayLabel(date: message.sentAt),
-                        _MessageBubble(
-                          message: message,
-                          mine: mine,
-                          startsGroup: startsGroup,
-                          endsGroup: endsGroup,
-                          animate: !_reduceMotion,
-                        ),
-                      ],
-                    );
-                  },
-                );
-                },
+                          return Column(
+                            children: [
+                              if (startsDay) _DayLabel(date: message.sentAt),
+                              _MessageBubble(
+                                message: message,
+                                mine: mine,
+                                startsGroup: startsGroup,
+                                endsGroup: endsGroup,
+                                animate: !_reduceMotion,
+                              ),
+                            ],
+                          );
+                        },
+                      );
+                    },
+                  ),
+                ],
               ),
             ),
           ),
-          _Composer(
+_Composer(
             controller: _input,
             sending: _sending,
             onSend: _send,
@@ -872,14 +886,12 @@ class _ComposerState extends ConsumerState<_Composer> {
                         width: 48,
                         height: 48,
                         decoration: BoxDecoration(
-                          gradient:
-                              active ? AppColors.vividGradient : null,
-                          color: active ? null : palette.surfaceMuted,
+                          color: active ? AppColors.accent : palette.surfaceMuted,
                           shape: BoxShape.circle,
                           boxShadow: active
                               ? const [
                                   BoxShadow(
-                                    color: Color(0x4D6D5CE8),
+                                    color: Color(0x4D3390EC),
                                     blurRadius: 16,
                                     offset: Offset(0, 6),
                                   ),
@@ -1186,28 +1198,23 @@ class _MessageBubble extends StatelessWidget {
         constraints:
             BoxConstraints(maxWidth: MediaQuery.sizeOf(context).width * .78),
         decoration: BoxDecoration(
-          // Outgoing bubbles wear the brand blue→violet sweep; incoming stay
-          // calm on the surface with a whisper of a border.
-          gradient: mine ? AppColors.chatBubbleGradient : null,
-          color: mine ? null : palette.surface,
-          border: mine
-              ? null
-              : Border.all(color: palette.divider, width: .8),
+          // Telegram-style: outgoing is a SOLID bubble (blue in dark,
+          // green in light), incoming is the surface with a thin border.
+          color: mine
+              ? (context.isDark
+                  ? AppColors.chatOutBubble
+                  : AppColors.lightChatOutBubble)
+              : palette.surface,
+          border: Border.all(
+            color: mine ? Colors.transparent : palette.divider,
+            width: .8,
+          ),
           borderRadius: BorderRadius.only(
             topLeft: mine ? big : (startsGroup ? big : small),
             topRight: mine ? (startsGroup ? big : small) : big,
             bottomLeft: mine ? big : (endsGroup ? big : small),
             bottomRight: mine ? (endsGroup ? big : small) : big,
           ),
-          boxShadow: mine
-              ? const [
-                  BoxShadow(
-                    color: Color(0x3D6D5CE8),
-                    blurRadius: 14,
-                    offset: Offset(0, 5),
-                  ),
-                ]
-              : null,
         ),
         child: Wrap(
           alignment: WrapAlignment.end,
@@ -1227,7 +1234,11 @@ class _MessageBubble extends StatelessWidget {
               Text(
                 message.text,
                 style: TextStyle(
-                  color: mine ? Colors.white : palette.textPrimary,
+                  // Dark theme: white on the blue outgoing bubble. Light
+                  // theme: Telegram uses near-black on its green bubble.
+                  color: mine
+                      ? (context.isDark ? Colors.white : const Color(0xFF000000))
+                      : palette.textPrimary,
                   fontSize: 15.5,
                   height: 1.35,
                 ),
@@ -1242,7 +1253,11 @@ class _MessageBubble extends StatelessWidget {
                       style: TextStyle(
                         fontSize: 10.5,
                         fontWeight: FontWeight.w500,
-                        color: mine ? Colors.white70 : palette.textSecondary,
+                        color: mine
+                            ? (context.isDark
+                                ? Colors.white70
+                                : const Color(0xFF4A4A4A))
+                            : palette.textSecondary,
                       ),
                   ),
                   if (mine) ...[
@@ -1250,7 +1265,15 @@ class _MessageBubble extends StatelessWidget {
                     Icon(
                       message.read ? Icons.done_all_rounded : Icons.done_rounded,
                       size: 14,
-                      color: message.read ? Colors.white : Colors.white70,
+                      color: mine
+                          ? (context.isDark
+                              ? (message.read
+                                  ? Colors.white
+                                  : Colors.white70)
+                              : (message.read
+                                  ? AppColors.accent
+                                  : const Color(0xFF4A4A4A)))
+                          : palette.textSecondary,
                     ),
                   ],
                 ],

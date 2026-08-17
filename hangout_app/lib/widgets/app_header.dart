@@ -1,11 +1,9 @@
 import 'package:flutter/material.dart';
 
 import '../theme/app_theme.dart';
-import 'gradient_text.dart';
 
 /// The header used on every home tab: a small profile avatar on the left, the
-/// screen title painted with the brand gradient, and icon actions on the
-/// right.
+/// screen title in Telegram's accent blue, and icon actions on the right.
 class AppHeader extends StatelessWidget {
   const AppHeader({
     super.key,
@@ -22,15 +20,16 @@ class AppHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final titleText = GradientText(
+    final titleText = Text(
       title,
       maxLines: 1,
       overflow: TextOverflow.ellipsis,
       textAlign: centerTitle ? TextAlign.center : TextAlign.start,
-      style: const TextStyle(
+      style: TextStyle(
         fontSize: 24,
         fontWeight: FontWeight.w800,
         letterSpacing: -0.5,
+        color: context.colors.accentSoft,
       ),
     );
 
@@ -107,12 +106,12 @@ class CircleAccentButton extends StatelessWidget {
       child: Container(
         width: size,
         height: size,
-        decoration: const BoxDecoration(
-          gradient: AppColors.vividGradient,
+        decoration: BoxDecoration(
+          color: AppColors.accent,
           shape: BoxShape.circle,
-          boxShadow: [
+          boxShadow: const [
             BoxShadow(
-              color: Color(0x4D6D5CE8),
+              color: Color(0x4D3390EC),
               blurRadius: 12,
               offset: Offset(0, 5),
             ),

@@ -1,62 +1,59 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-/// Hangout visual language — "Midnight Messenger" (dark) with a faithful
-/// light counterpart.
+/// Hangout visual language — "Telegram-inspired".
 ///
-/// Matches the approved UI designs: a near-black canvas, softly rounded
-/// charcoal cards, a vivid blue accent for primary actions and a lighter
-/// periwinkle for headings/links. The light theme mirrors the same ramps
-/// onto a soft gray canvas with white surfaces and a deeper, readable blue
-/// wherever the design leans on periwinkle.
+/// A faithful re-skin of Telegram's current look:
+///   * Dark  : chat bg #17212B · panel bg #17212B · secondary #232E3C
+///             incoming bubble #232E3C · outgoing bubble #2B5278
+///             text #F5F5F5 · hint #708499 · link/accent #6AB3F3
+///   * Light : canvas #FFFFFF · incoming #FFFFFF / #F1F1F1 · outgoing
+///             #EFFDDE (Telegram green) · accent #3390EC
+///   * The famous Telegram violet #8774E1 accents highlights.
 ///
 /// Widgets should never reference the raw dark constants for surfaces or
 /// text — always resolve them through [HangoutPalette] (`context.colors`)
 /// so both themes render correctly.
-///
-///  * Canvas    : #0A0A0C dark · #F4F5F8 light (app background)
-///  * Surface   : #1A1A1F dark · #FFFFFF light (cards, sheets, rows)
-///  * Accent    : #3B82F6   (active nav pill, FAB, send, badges)
-///  * Periwinkle: #A9C3FB dark-only (light theme uses deep blue #2563EB)
-///  * Text      : #F3F4F6/#0F1115 primary · #9CA3AF/#6B7280 secondary
-///  * Radii     : sm 12 · md 16 · lg 20 · xl 28 · full (pills, avatars)
 class AppColors {
   AppColors._();
 
-  // ── Dark canvas & surfaces ───────────────────────────────────────────────
-  static const Color canvas = Color(0xFF0A0A0C); // screen background
-  static const Color canvasElevated = Color(0xFF101013); // nav bar, app bar
-  static const Color surface = Color(0xFF1A1A1F); // cards, list groups
-  static const Color surfaceAlt = Color(0xFF232329); // search field, chips
-  static const Color surfaceMuted = Color(0xFF2C2C33); // idle buttons, avatars
-  static const Color divider = Color(0xFF2A2A31); // hairlines
+  // ── Telegram dark canvas & surfaces ─────────────────────────────────────
+  static const Color canvas = Color(0xFF17212B); // window/chats bg
+  static const Color canvasElevated = Color(0xFF17212B); // header/nav bg
+  static const Color surface = Color(0xFF232E3C); // cards, groups, incoming
+  static const Color surfaceAlt = Color(0xFF232E3C); // search field, chips
+  static const Color surfaceMuted = Color(0xFF2B3A4A); // idle buttons, avatars
+  static const Color divider = Color(0xFF101921); // hairlines
+  static const Color chatOutBubble = Color(0xFF2B5278); // outgoing bubble
 
-  // ── Accent ramp ──────────────────────────────────────────────────────────
-  static const Color accent = Color(0xFF3B82F6); // primary blue
-  static const Color accentDeep = Color(0xFF2563EB); // pressed / gradient end
-  static const Color accentSoft = Color(0xFFA9C3FB); // titles, links, buttons
-  static const Color onAccentSoft = Color(0xFF12213F); // text on accentSoft
-  static const Color accentSurface = Color(0xFF16294A); // tinted container
+  // ── Accent ramp (Telegram) ──────────────────────────────────────────────
+  static const Color accent = Color(0xFF3390EC); // primary blue
+  static const Color accentDeep = Color(0xFF2E7FD9); // pressed
+  static const Color accentSoft = Color(0xFF6AB3F3); // links, titles
+  static const Color onAccentSoft = Color(0xFF0B1F33); // text on accentSoft
+  static const Color accentSurface = Color(0xFF1E3A5F); // tinted container
+  static const Color telegramViolet = Color(0xFF8774E1); // signature violet
 
-  // ── Text ─────────────────────────────────────────────────────────────────
-  static const Color textPrimary = Color(0xFFF3F4F6);
-  static const Color textSecondary = Color(0xFF9CA3AF);
-  static const Color textTertiary = Color(0xFF6B7280);
+  // ── Text (Telegram) ─────────────────────────────────────────────────────
+  static const Color textPrimary = Color(0xFFF5F5F5);
+  static const Color textSecondary = Color(0xFF708499); // hint
+  static const Color textTertiary = Color(0xFF5F738C);
 
   // ── Semantic ─────────────────────────────────────────────────────────────
-  static const Color success = Color(0xFF22C55E); // presence / online
-  static const Color danger = Color(0xFFEF4444); // end call / decline / error
+  static const Color success = Color(0xFF5BDC8B); // presence / online
+  static const Color danger = Color(0xFFE5634C); // end call / decline
 
-  // ── Light canvas & surfaces ──────────────────────────────────────────────
-  static const Color lightCanvas = Color(0xFFF4F5F8);
+  // ── Light canvas & surfaces (Telegram) ──────────────────────────────────
+  static const Color lightCanvas = Color(0xFFFFFFFF);
   static const Color lightSurface = Color(0xFFFFFFFF);
-  static const Color lightSurfaceAlt = Color(0xFFEDEFF3);
-  static const Color lightSurfaceMuted = Color(0xFFE3E6ED); // idle buttons
-  static const Color lightDivider = Color(0xFFE2E5EB);
-  static const Color lightTextPrimary = Color(0xFF0F1115);
-  static const Color lightTextSecondary = Color(0xFF6B7280);
-  static const Color lightTextTertiary = Color(0xFF9AA0AB);
-  static const Color lightAccentSurface = Color(0xFFDCE7FE); // tinted container
+  static const Color lightSurfaceAlt = Color(0xFFF1F1F1);
+  static const Color lightSurfaceMuted = Color(0xFFE9E9E9); // idle buttons
+  static const Color lightDivider = Color(0xFFDADCE0);
+  static const Color lightTextPrimary = Color(0xFF000000);
+  static const Color lightTextSecondary = Color(0xFF707579);
+  static const Color lightTextTertiary = Color(0xFF9AA0A6);
+  static const Color lightAccentSurface = Color(0xFFE3F2FD); // tinted
+  static const Color lightChatOutBubble = Color(0xFFEFFDDE); // outgoing green
 
   // ── Gradients ────────────────────────────────────────────────────────────
   /// Brand accent: blue -> deep blue (135deg) for FABs, send, avatars.
@@ -66,19 +63,19 @@ class AppColors {
     colors: [Color(0xFF4F8DF8), Color(0xFF2563EB)],
   );
 
-  /// "Hangout 2.0" vivid gradient — blue sweeping into violet. Used for the
-  /// active nav pill, send button, gradient titles and highlights.
+  /// Signature blue→violet sweep (Telegram's accent + violet).
   static const LinearGradient vividGradient = LinearGradient(
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
-    colors: [Color(0xFF4E8CF7), Color(0xFF8B5CF6)],
+    colors: [Color(0xFF3390EC), Color(0xFF8774E1)],
   );
 
-  /// Outgoing message bubbles: a soft blue→violet sweep, Messenger-style.
+  /// Outgoing message bubbles: solid Telegram blue in dark, solid green in
+  /// light (Telegram does NOT use gradient bubbles by default).
   static const LinearGradient chatBubbleGradient = LinearGradient(
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
-    colors: [Color(0xFF4E8CF7), Color(0xFF6D5CE8)],
+    colors: [Color(0xFF2B5278), Color(0xFF2B5278)],
   );
 
   /// Call screens: near-black with a faint blue lift.
@@ -88,33 +85,32 @@ class AppColors {
     colors: [Color(0xFF12182B), Color(0xFF07070A)],
   );
 
-  /// Canvas (dark): flat black with a subtle top lift.
+  /// Canvas (dark): flat Telegram window bg.
   static const LinearGradient canvasGradient = LinearGradient(
     begin: Alignment.topCenter,
     end: Alignment.bottomCenter,
-    colors: [Color(0xFF101014), Color(0xFF0A0A0C)],
+    colors: [Color(0xFF17212B), Color(0xFF17212B)],
   );
 
   /// Canvas (light fallback).
   static const LinearGradient lightCanvasGradient = LinearGradient(
     begin: Alignment.topCenter,
     end: Alignment.bottomCenter,
-    colors: [Color(0xFFFFFFFF), Color(0xFFF4F5F8)],
+    colors: [Color(0xFFFFFFFF), Color(0xFFFFFFFF)],
   );
 
-  /// Chat canvas (dark): a very subtle cool lift at the top so the
-  /// conversation doesn't sit on a dead-black slab.
+  /// Chat canvas (dark): Telegram's flat #17212B.
   static const LinearGradient chatBackgroundDark = LinearGradient(
     begin: Alignment.topCenter,
     end: Alignment.bottomCenter,
-    colors: [Color(0xFF11131C), Color(0xFF0A0A0C)],
+    colors: [Color(0xFF17212B), Color(0xFF17212B)],
   );
 
-  /// Chat canvas (light): warm white melting into the app gray.
+  /// Chat canvas (light): Telegram's white chat.
   static const LinearGradient chatBackgroundLight = LinearGradient(
     begin: Alignment.topCenter,
     end: Alignment.bottomCenter,
-    colors: [Color(0xFFFDFDFF), Color(0xFFF4F5F8)],
+    colors: [Color(0xFFFFFFFF), Color(0xFFFFFFFF)],
   );
 
   // ── Avatar gradients ────────────────────────────────────────────────────
@@ -125,27 +121,27 @@ class AppColors {
     LinearGradient(
         begin: Alignment.topLeft,
         end: Alignment.bottomRight,
-        colors: [Color(0xFF4F8DF8), Color(0xFF2563EB)]), // blue
+        colors: [Color(0xFF3390EC), Color(0xFF2E7FD9)]), // blue
     LinearGradient(
         begin: Alignment.topLeft,
         end: Alignment.bottomRight,
-        colors: [Color(0xFF8B5CF6), Color(0xFF6D28D9)]), // violet
+        colors: [Color(0xFF8774E1), Color(0xFF6D5CE8)]), // violet
     LinearGradient(
         begin: Alignment.topLeft,
         end: Alignment.bottomRight,
-        colors: [Color(0xFFEC4899), Color(0xFFBE185D)]), // pink
+        colors: [Color(0xFFE56590), Color(0xFFC94E7D)]), // pink
     LinearGradient(
         begin: Alignment.topLeft,
         end: Alignment.bottomRight,
-        colors: [Color(0xFFF59E0B), Color(0xFFEA580C)]), // amber
+        colors: [Color(0xFFF7A62B), Color(0xFFEA8A13)]), // amber
     LinearGradient(
         begin: Alignment.topLeft,
         end: Alignment.bottomRight,
-        colors: [Color(0xFF10B981), Color(0xFF047857)]), // emerald
+        colors: [Color(0xFF3BCA6E), Color(0xFF2BA651)]), // green
     LinearGradient(
         begin: Alignment.topLeft,
         end: Alignment.bottomRight,
-        colors: [Color(0xFF06B6D4), Color(0xFF0E7490)]), // cyan
+        colors: [Color(0xFF40B9CE), Color(0xFF2E97AD)]), // cyan
   ];
 
   /// Picks a stable avatar gradient for [seed] (usually the user's name).
@@ -378,10 +374,11 @@ class AppTheme {
       onSurface: textPrimary,
       onSurfaceVariant: textSecondary,
       surfaceContainerLowest: canvas,
-      surfaceContainerLow: dark ? AppColors.canvasElevated : Colors.white,
+      surfaceContainerLow: canvas,
       surfaceContainer: surface,
       surfaceContainerHigh: surfaceAlt,
-      surfaceContainerHighest: dark ? AppColors.surfaceMuted : AppColors.lightSurfaceMuted,
+      surfaceContainerHighest:
+          dark ? AppColors.surfaceMuted : AppColors.lightSurfaceMuted,
       primaryContainer: dark ? AppColors.accentSurface : AppColors.lightAccentSurface,
       onPrimaryContainer: dark ? AppColors.accentSoft : AppColors.accentDeep,
       secondaryContainer: dark ? AppColors.surfaceAlt : surfaceAlt,
