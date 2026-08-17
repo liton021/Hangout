@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 
 import '../theme/app_theme.dart';
 
-/// "Hangout 2.0" bottom navigation: a floating rounded pill with a soft
-/// shadow. The active tab sits inside the brand blue→violet gradient with a
-/// gentle icon bounce — Messenger-style, but ours.
+/// Slim capsule bottom navigation: a rounded pill with **icons only** (no
+/// labels). The active tab sits inside a fully-rounded accent disc with a
+/// gentle icon bounce — modern messenger style.
 class HangoutNavBar extends StatelessWidget {
   const HangoutNavBar({
     super.key,
@@ -27,10 +27,11 @@ class HangoutNavBar extends StatelessWidget {
   Widget build(BuildContext context) {
     final palette = context.colors;
     return Container(
-      margin: const EdgeInsets.fromLTRB(14, 0, 14, 10),
+      // Slim capsule: modest side margins, tight vertical padding.
+      margin: const EdgeInsets.fromLTRB(60, 0, 60, 12),
       decoration: BoxDecoration(
         color: palette.canvasElevated,
-        borderRadius: BorderRadius.circular(AppRadius.xl),
+        borderRadius: BorderRadius.circular(AppRadius.pill),
         border: Border.all(color: palette.divider, width: 1),
         boxShadow: [
           BoxShadow(
@@ -92,15 +93,17 @@ class _NavItem extends StatelessWidget {
       label: spec.label,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(AppRadius.lg),
+        customBorder: const CircleBorder(),
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 220),
           curve: Curves.easeOutCubic,
-          margin: const EdgeInsets.symmetric(horizontal: 4),
-          padding: const EdgeInsets.symmetric(vertical: 9),
+          margin: const EdgeInsets.symmetric(horizontal: 2),
+          width: 46,
+          height: 46,
           decoration: BoxDecoration(
             color: selected ? AppColors.accent : Colors.transparent,
-            borderRadius: BorderRadius.circular(AppRadius.lg),
+            // Fully rounded disc for the selection indicator.
+            shape: BoxShape.circle,
             boxShadow: selected
                 ? const [
                     BoxShadow(
@@ -111,34 +114,17 @@ class _NavItem extends StatelessWidget {
                   ]
                 : null,
           ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              AnimatedScale(
-                scale: selected ? 1.08 : 1.0,
-                duration: const Duration(milliseconds: 220),
-                curve: Curves.easeOutBack,
-                child: Icon(
-                  selected ? spec.selectedIcon : spec.icon,
-                  size: 24,
-                  color: foreground,
-                ),
+          child: Center(
+            child: AnimatedScale(
+              scale: selected ? 1.08 : 1.0,
+              duration: const Duration(milliseconds: 220),
+              curve: Curves.easeOutBack,
+              child: Icon(
+                selected ? spec.selectedIcon : spec.icon,
+                size: 24,
+                color: foreground,
               ),
-              const SizedBox(height: 3),
-              AnimatedDefaultTextStyle(
-                duration: const Duration(milliseconds: 180),
-                style: TextStyle(
-                  fontSize: 12.5,
-                  fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
-                  color: foreground,
-                ),
-                child: Text(
-                  spec.label,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-            ],
+            ),
           ),
         ),
       ),
